@@ -4,7 +4,6 @@ import shutil
 from pstats import SortKey, Stats
 from datetime import datetime
 import json
-from collections import defaultdict
 from z3 import Implies, substitute
 import subprocess
 
@@ -47,8 +46,12 @@ def run_example(file):
     run_benchmark(filename, v, TIMEOUT_TIME)
 
 
-def run_aeval_single_ours(tool_name):
+def run_aeval_single_ours(tool_name, num):
+    i = 0
     for filename in os.listdir(SINGLE):
+        if i >= num:
+            break
+        i += 1
         if not is_benchmark_file(filename):
             continue
         problem = None
@@ -59,12 +62,10 @@ def run_aeval_single_ours(tool_name):
     write_test_results("aeval-single", tool_name)
 
 
-def run_aeval_multiple_ours(tool_name):
+def run_aeval_multiple_ours(tool_name, num):
     multi_inv = []
     for filename in os.listdir(MULTIPLE):
         if not is_benchmark_file(filename):
-            continue
-        if filename not in mul_with_reverse:
             continue
         multi_inv.append(
             {
@@ -75,7 +76,7 @@ def run_aeval_multiple_ours(tool_name):
             }
         )
     single_inv = multi_inv_to_single_inv(multi_inv)
-    run_single_inv(single_inv)
+    run_single_inv(single_inv, num)
     write_test_results("aeval-multiple", tool_name)
 
 
@@ -99,17 +100,20 @@ def multi_inv_to_single_inv(multi_inv):
     return single_inv
 
 
-def run_single_inv(single_inv):
+def run_single_inv(single_inv, num):
+    i = 0
     for si in single_inv:
+        if i >= num:
+            break
+        i += 1
         f = si["filename"]
         sit = SingleInvariantTransform(si["sexprs"])
         all_vars, prop, control_flow = sit.get_problem_args()
-        all_vars = remove_next_references(all_vars)
         problem = SmtToVmt(all_vars, prop, f, control_flow=control_flow)
         run_benchmark(si["filename"], problem, TIMEOUT_TIME)
 
 
-def run_benchmark_cmd(tool_name, benchmark_set, write_out_name):
+def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num):
     if tool_name == "Quic3":
         solver = QUIC3
         args = QUIC3_ARGS
@@ -117,7 +121,11 @@ def run_benchmark_cmd(tool_name, benchmark_set, write_out_name):
         solver = GSPACER
         args = GSPACER_ARGS
     args = args.split(" ")
+    i = 0
     for filename in os.listdir(benchmark_set):
+        if i >= num:
+            break
+        i += 1
         print(f"-----{filename}-----")
         filename = os.path.join(benchmark_set, filename)
         with timeout(TIMEOUT_TIME):
@@ -179,7 +187,7 @@ def run_benchmark(filename, smt_prob, timeout_time):
 def write_test_results(dataset, tool_name):
     dir_name = os.path.join("..", "results", tool_name)
     if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
+        os.makedirs(dir_name)
     with open(os.path.join(dir_name, f"{dataset}-results.py"), "w+") as f:
         f.write(f"good = {json.dumps(test_good)}\n")
         f.write(f"proph = {json.dumps(test_proph)}\n")
@@ -204,24 +212,32 @@ def reset_test_categories():
     test_interp_doesnt_cover = []
 
 
-def run_aeval_single(tool_name):
+def run_aeval_single(tool_name, num_bench):
+    if num_bench is not None:
+        num = num_bench
+    else:
+        num = 1000
     if tool_name == "Quic3":
-        run_benchmark_cmd("Quic3", SINGLE_CMD, "aeval-single")
+        run_benchmark_cmd("Quic3", SINGLE_CMD, "aeval-single", num)
     elif tool_name == "GSpacer":
-        run_benchmark_cmd("GSpacer", SINGLE_CMD, "aeval-single")
+        run_benchmark_cmd("GSpacer", SINGLE_CMD, "aeval-single", num)
     elif tool_name == "CondHist":
-        run_aeval_single_ours(tool_name)
+        run_aeval_single_ours(tool_name, num)
     else:
         raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch.")
 
 
-def run_aeval_multiple(tool_name):
+def run_aeval_multiple(tool_name, num_bench):
+    if num_bench is not None:
+        num = num_bench
+    else:
+        num = 1000
     if tool_name == "Quic3":
-        run_benchmark_cmd("Quic3", MULTIPLE, "aeval-multiple")
+        run_benchmark_cmd("Quic3", MULTIPLE, "aeval-multiple", num)
     elif tool_name == "GSpacer":
-        run_benchmark_cmd("GSpacer", MULTIPLE, "aeval-multiple")
+        run_benchmark_cmd("GSpacer", MULTIPLE, "aeval-multiple", num)
     elif tool_name == "CondHist":
-        run_aeval_multiple_ours(tool_name)
+        run_aeval_multiple_ours(tool_name, num)
     else:
         raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch.")
 

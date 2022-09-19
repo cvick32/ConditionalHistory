@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from utils import Translate, Sexpr
 from variable import (
     StateVariable,
