@@ -298,7 +298,6 @@ class HistoryVariable(Variable):
         pc_var,
         pc_val,
         num_proph,
-        proph_next_var,
     ):
         self.var_to_proph = var_to_proph
         name = f"{var_to_proph.name}H{num_proph}"
@@ -307,84 +306,11 @@ class HistoryVariable(Variable):
         self.cap = Capture(f"{var_to_proph.name}H{num_proph}")
         super().__init__(var_def, next_var_def)
         self.antecedents = []
-        self.capture_consequents = []
-        self.else_consequents = []
-        if proph_next_var:
-            self.proph_expr = self.var_to_proph.next_var_def
-        else:
-            self.proph_expr = self.var_to_proph.var_def
-        self.trans_constraints = self.build_trans(
-            needed_equality, control_path_exprs, pc_var, pc_val
-        )
-        self.is_trigger = False
-
-    def build_trans(self, ne, cpes, pc_var, pc_val):
-        if cpes:
-            cpe_expr = And([cpe[0] == cpe[1] for cpe in cpes])
-        else:
-            cpe_expr = True
-        self.pc_ante = []
-        if pc_var is not None and pc_val is not None:
-            self.pc_ante = [pc_var.var_def == pc_val]
-
-        self.antecedents = [ne[0] == ne[1], cpe_expr]
-        self.capture_consequents = [self.proph_expr == self.next_var_def]
-        self.else_consequents = [self.var_def == self.next_var_def]
-        self.current_history_cond = And(self.antecedents + self.pc_ante)
-        return [
-            Implies(
-                And(
-                    self.antecedents
-                    + self.pc_ante
-                    + [self.cap.get_history_antecedent()]
-                ),
-                And(
-                    self.capture_consequents[0],
-                    self.cap.get_history_consequent_for_capture(),
-                ),
-            ),
-            Implies(
-                Not(And(self.antecedents + self.pc_ante)),
-                And(
-                    self.else_consequents[0],
-                    self.cap.get_history_consequent_for_not_capture(),
-                ),
-            ),
-        ]
+        self.capture_consequents = [self.var_to_proph.var_def == self.next_var_def]
 
     def get_trans_constraints(self):
-        return self.trans_constraints
+        return self.capture_consequents
 
-    def get_current_history_condition(self):
-        return self.current_history_cond
-
-    def set_safe_interp_trans(self, interp):
-        new_ante = copy(self.pc_ante)
-        new_ante.append(interp)
-        new_ante.append(self.cap.get_history_antecedent())
-        new_cap_cons = copy(self.capture_consequents)
-        new_cap_cons.append(self.cap.get_history_consequent_for_capture())
-        new_else_cons = copy(self.else_consequents)
-        new_else_cons.append(self.cap.get_history_consequent_for_not_capture())
-        self.trans_constraints = [
-            Implies(And(new_ante), And(new_cap_cons)),
-            Implies(Not(And(new_ante)), And(new_else_cons)),
-        ]
-        return self.trans_constraints
-
-    def set_trigger_interp_trans(self, interp):
-        new_ante = copy(self.pc_ante)
-        new_ante.append(interp)
-        new_cap_cons = copy(self.capture_consequents)
-        new_else_cons = copy(self.else_consequents)
-        self.trans_constraints = [
-            Implies(And(new_ante), And(new_cap_cons)),
-            Implies(Not(And(new_ante)), And(new_else_cons)),
-        ]
-        self.is_trigger = True
-        self.cap.init_constraints = []
-        self.cap.trans_constraints = []
-        return self.trans_constraints
 
 
 class ProphecyVariable(Variable):

@@ -225,21 +225,10 @@ class SmtToVmt:
             else:
                 print("Prophecy Needed")
                 auxs = violation.build_auxiliary_variables(self.num_proph)
-                for hist, proph, axiom_instance in auxs:
+                for hists, proph, axiom_instance in auxs:
                     self.num_proph += 1
-                    if not violation.check_history_kills(hist):
-                        print("Trying interpolation")
-                        i_type, interp = self.get_top_interpolant(hist)
-                        print ("type: {} interp: {}".format(i_type,interp))
-                        self.used_interpolants.append(interp)
-                        if i_type == "safe":
-                            hist.set_safe_interp_trans(interp)
-                        else:
-                            hist.set_trigger_interp_trans(interp)
-                    print ("hist: {}".format(repr(hist)))
-                    for tc in hist.trans_constraints:
-                        print ("tc: {}".format(tc))
-                    self.add_history_var(hist)
+                    for hist in hists:
+                        self.add_history_var(hist)
                     self.add_prophecy_var(proph)
                     print(f"Axiom Violation with Prophecy: {axiom_instance}")
                     self.add_aux_trans_constraints([axiom_instance])

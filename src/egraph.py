@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from utils import match_step_str_to_var, ENode
 
-from array_axioms import ARRAY_AXIOMS
+from array_axioms import ARRAY_AXIOMS, V, L, Z, A_ax
 from violation import Violation
 from variable import ImmutableVariable, ProphecyVariable
 
@@ -29,23 +29,14 @@ class EGraph:
         self.imm_var_to_id = {}
         self.debug = debug
 
+        self.constarr_terms = []
+        self.constarr_term_set = set([])
+        self.write_terms = []
+        self.write_term_set = set([])
+        self.index_terms = []
+        self.index_term_set = set([])
         self.used_transitions = []
         for expr in exprs:
-            # TODO fix so we dont turn everything to strings
-            str_expr = str(expr.decl())
-            if str_expr == "Implies":
-                if not self.model.eval(expr.arg(0)):
-                    # remove unused implications in current model
-                    continue
-                else:
-                    self.used_transitions.append(expr)
-            elif str_expr == "And":
-                for c in expr.children():
-                    if not self.model.eval(c.arg(0)):
-                        # remove unused implications in current model
-                        continue
-                    else:
-                        self.used_transitions.append(c)
             self.add_to_egraph(expr)
         for prop in props:
             self.add_to_egraph(prop)
@@ -60,8 +51,47 @@ class EGraph:
         self.enode_to_id_class[enode] = id_num
         if enode not in self.id_class_to_enodes[id_num]:
             self.id_class_to_enodes[id_num].append(enode)
+        head_str = str(head)
+        if head_str == "Write":
+            if z3_def not in self.write_term_set:
+                self.write_term_set.add(z3_def)
+                self.write_terms.append(z3_def)
+                self.add_index_term(args[1])
+        elif head_str == "Read":
+            self.add_index_term(args[1])
+        elif head_str == "ConstArr":
+            if z3_def not in self.constarr_term_set:
+                self.constarr_term_set.add(z3_def)
+                self.constarr_terms.append(z3_def)
         return enode
+    
+    def check_violated(self, violated):
+        s = Solver()
+        flags = []
+        cnstrs = list(self.exprs) + [Not(And(self.props))]
+        for idx, exp in enumerate(violated):
+            flag = Const("$fl{}".format(idx), BoolSort())
+            flags.append(flag)
+            cnstrs.append(Implies(flag, exp))
+        cond = And(cnstrs)
+        s.add(cond)
+        check = s.check(flags)
+        if str(check) == "unsat":
+            used = []
+            core = s.unsat_core()
+            for fl, exp in zip(flags, violated):
+                if fl in core:
+                    used.append(exp)
+            return used
+        else:
+            self.model = s.model()
+            return None
 
+    def add_index_term(self, node):
+        z3_def = node.z3_obj
+        if z3_def not in self.index_term_set:
+            self.index_term_set.add(z3_def)
+            self.index_terms.append(z3_def)
     @lru_cache
     def get_id_for_cur_def(self, z3_def):
         cur_z3_expr = z3_def
@@ -142,16 +172,49 @@ class EGraph:
         self.push_on_match_term_stack(self.props, prop=True)
 
     def get_axiom_violations(self, needed_subs=[]):
-        for axiom in self.axioms:
-            ns = needed_subs.copy()
-            self.debug_print(f"Matching Axiom: {axiom}")
-            violations = self.match_axiom(axiom, axiom.trigger, {}, ns)
-            self.violations.extend(violations)
-            if violations:
-                return self.violations
-        self.control_path = set()
-        self.debug_print(f"Match against enodes: {self.match_against_enodes}")
-        self.match_against_enodes = self.match_against_enodes[:-1]
+        violated = []
+        while True:
+            new_violated = []
+            for constarr in self.constarr_terms:
+                val = self.get_args_from_def(constarr)[0].z3_obj
+                for idx in self.index_terms:
+                    axiom = substitute(self.axioms[0].z3_def, [(V, val), (L, idx)])
+                    if not self.model.eval(axiom):
+                        new_violated.append(axiom)
+            for write in self.write_terms:
+                arr = self.get_args_from_def(write)[0].z3_obj
+                wid = self.get_args_from_def(write)[1].z3_obj
+                val = self.get_args_from_def(write)[2].z3_obj
+                axiom = substitute(
+                    self.axioms[1].z3_def, [(A_ax, arr), (V, val), (L, wid)]
+                )
+                if not self.model.eval(axiom):
+                    new_violated.append(axiom)
+                for idx in self.index_terms:
+                    axiom = substitute(
+                        self.axioms[2].z3_def,
+                        [(A_ax, arr), (V, val), (L, wid), (Z, idx)],
+                    )
+                    if not self.model.eval(axiom):
+                        new_violated.append(axiom)
+            if len(new_violated) == 0:
+                print("no new violations")
+                exit(1)
+                break
+            violated.extend(new_violated)
+            used = self.check_violated(violated)
+            if used is not None:
+                for thing in used:
+                    print("violation: {}".format(thing))
+                break
+        for axiom in used:
+            self.violations.append(
+                Violation(
+                    axiom,
+                    [],
+                    self,
+                )
+            )
         return self.violations
 
     def match_axiom(self, axiom, match_term, cur_sub, needed_subs):
