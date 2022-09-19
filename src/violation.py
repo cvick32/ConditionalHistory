@@ -31,7 +31,6 @@ class Violation:
         self.egraph = egraph
         self.prophecy_vars = []
         self.set_frame_numbers()
-        self.check_for_immutable_var_instance()
         self.proph_next_var = False
         self.interp_clauses = None
 
@@ -192,20 +191,24 @@ class Violation:
     def create_proph_and_hist(
         self, var_to_proph, equal_enode_var_defs, cpes, expr_to_proph, num_proph
     ):
-        pc_val = self.get_pc_val_from_frame(str(expr_to_proph).split("_")[1])
+        proph_frame = str(expr_to_proph).split("_")[1]
+        pc_val = self.get_pc_val_from_frame(proph_frame)
         pc_var = self.get_pc_var()
-        history = HistoryVariable(
-            var_to_proph,
-            equal_enode_var_defs,
-            cpes,
-            pc_var,
-            pc_val,
-            num_proph,
-            self.proph_next_var,
-        )
+        hist_vars = []
+        history = var_to_proph
+        for i in range(0, self.length - int(proph_frame)):
+            history = HistoryVariable(
+                history,
+                equal_enode_var_defs,
+                cpes,
+                pc_var,
+                pc_val,
+                num_proph,
+            )
+            hist_vars.append(history)
         prophecy = ProphecyVariable(var_to_proph, expr_to_proph, history, num_proph)
         self.prophecy_vars.append(prophecy)
-        return history, prophecy
+        return hist_vars, prophecy
 
     def get_pc_var(self):
         try:
@@ -218,7 +221,10 @@ class Violation:
             z3_str = str(expr)
             if z3_str in ["ConstArr", "Write", "Read"]:
                 continue
-            name, frame = z3_str.split("_")
+            try:
+                name, frame = z3_str.split("_")
+            except:
+                continue
             if name == "pc" and frame == frame_num_str:
                 return self.z3_model[expr]
         return None

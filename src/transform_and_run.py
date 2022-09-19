@@ -217,14 +217,10 @@ def run_aeval_single(tool_name, num_bench):
         num = num_bench
     else:
         num = 1000
-    if tool_name == "Quic3":
-        run_benchmark_cmd("Quic3", SINGLE_CMD, "aeval-single", num)
-    elif tool_name == "GSpacer":
-        run_benchmark_cmd("GSpacer", SINGLE_CMD, "aeval-single", num)
-    elif tool_name == "CondHist":
+    if tool_name == "UnCondHist2":
         run_aeval_single_ours(tool_name, num)
     else:
-        raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch.")
+        raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly UnCondHist2 is available on this branch.")
 
 
 def run_aeval_multiple(tool_name, num_bench):
@@ -232,13 +228,9 @@ def run_aeval_multiple(tool_name, num_bench):
         num = num_bench
     else:
         num = 1000
-    if tool_name == "Quic3":
-        run_benchmark_cmd("Quic3", MULTIPLE, "aeval-multiple", num)
-    elif tool_name == "GSpacer":
-        run_benchmark_cmd("GSpacer", MULTIPLE, "aeval-multiple", num)
-    elif tool_name == "CondHist":
+    if tool_name == "UnCondHist2":
         run_aeval_multiple_ours(tool_name, num)
     else:
-        raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch.")
+        raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly UnCondHist2 is available on this branch.")
 
 
