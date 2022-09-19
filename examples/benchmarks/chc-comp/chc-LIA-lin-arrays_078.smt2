@@ -1,0 +1,6 @@
+(set-logic HORN)
+(declare-fun state (Int (Array Int Int) Bool Int Int) Bool)
+(assert (forall ((|B_0| Int) (|C| (Array Int Int)) (|.loc.4| Bool) (|H| Int) (|G| Int) (|.loc.7| Bool) (|.y.5| Int) (|.y.6| (Array Int Int)) (|.xtv.1| Int) (|.xtv.2| Int)) (=> (not .loc.4) (state |B_0| |C| |.loc.4| |H| |G|))))
+(assert (forall ((|B_0| Int) (|C| (Array Int Int)) (|.loc.4| Bool) (|H| Int) (|G| Int) (|.loc.7| Bool) (|.y.5| Int) (|.y.6| (Array Int Int)) (|.xtv.1| Int) (|.xtv.2| Int)) (=> (and (state |B_0| |C| |.loc.4| |H| |G|) (let ((.def_19 (<= H 0))) (and (and (not .loc.4) (and (not (<= 0 G)) (and (not .def_19) (and (and (not (<= G (- 1))) (not (= (select (store C H 0) (+ H G)) 0))) (or .def_19 (not (<= (+ H G) 0))))))) .loc.7))) (state |.y.5| |.y.6| |.loc.7| |.xtv.1| |.xtv.2|))))
+(assert (forall ((|B_0| Int) (|C| (Array Int Int)) (|.loc.4| Bool) (|H| Int) (|G| Int) (|.loc.7| Bool) (|.y.5| Int) (|.y.6| (Array Int Int)) (|.xtv.1| Int) (|.xtv.2| Int)) (=> (state |B_0| |C| |.loc.4| |H| |G|) (not .loc.4))))
+(check-sat)

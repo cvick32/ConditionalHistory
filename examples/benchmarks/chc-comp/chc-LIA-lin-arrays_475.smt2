@@ -1,0 +1,6 @@
+(set-logic HORN)
+(declare-fun state (Int (Array Int Int) Int (Array Int Int) Bool) Bool)
+(assert (forall ((|D_1| Int) (|C_1| (Array Int Int)) (|F_1| Int) (|E_1| (Array Int Int)) (|.loc.6| Bool) (|.loc.11| Bool) (|.y.7| Int) (|.y.8| (Array Int Int)) (|.y.9| Int) (|.y.10| (Array Int Int))) (=> (and (and (= D_1 F_1) (= C_1 E_1)) (not .loc.6)) (state |D_1| |C_1| |F_1| |E_1| |.loc.6|))))
+(assert (forall ((|D_1| Int) (|C_1| (Array Int Int)) (|F_1| Int) (|E_1| (Array Int Int)) (|.loc.6| Bool) (|.loc.11| Bool) (|.y.7| Int) (|.y.8| (Array Int Int)) (|.y.9| Int) (|.y.10| (Array Int Int))) (=> (and (state |D_1| |C_1| |F_1| |E_1| |.loc.6|) (let ((.def_21 (store C_1 D_1 1))) (let ((.def_23 (store E_1 F_1 1))) (and (and (not .loc.6) (and (and (= D_1 F_1) (= C_1 E_1)) (or (not (= (select .def_21 F_1) (select .def_23 F_1))) (not (= .def_21 .def_23))))) .loc.11)))) (state |.y.7| |.y.8| |.y.9| |.y.10| |.loc.11|))))
+(assert (forall ((|D_1| Int) (|C_1| (Array Int Int)) (|F_1| Int) (|E_1| (Array Int Int)) (|.loc.6| Bool) (|.loc.11| Bool) (|.y.7| Int) (|.y.8| (Array Int Int)) (|.y.9| Int) (|.y.10| (Array Int Int))) (=> (state |D_1| |C_1| |F_1| |E_1| |.loc.6|) (not .loc.6))))
+(check-sat)

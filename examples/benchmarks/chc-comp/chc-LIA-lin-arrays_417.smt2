@@ -1,0 +1,6 @@
+(set-logic HORN)
+(declare-fun state (Int (Array Int Int) Int Int (Array Int Int)) Bool)
+(assert (forall ((|A_0| Int) (|F| (Array Int Int)) (|B_0| Int) (|C| Int) (|E| (Array Int Int)) (|.xiv.1| Int) (|.xiv.2| (Array Int Int)) (|.xiv.3| Int) (|.xiv.4| Int) (|.xiv.5| (Array Int Int))) (=> (and (= A_0 (select E A_0)) (and (= A_0 C) (and (<= 1 B_0) (and (not (<= 0 B_0)) (and (not (<= A_0 0)) (= (+ A_0 (* (- 1) (select F A_0))) (- 8))))))) (state |A_0| |F| |B_0| |C| |E|))))
+(assert (forall ((|A_0| Int) (|F| (Array Int Int)) (|B_0| Int) (|C| Int) (|E| (Array Int Int)) (|.xiv.1| Int) (|.xiv.2| (Array Int Int)) (|.xiv.3| Int) (|.xiv.4| Int) (|.xiv.5| (Array Int Int))) (=> (and (state |A_0| |F| |B_0| |C| |E|) false) (state |.xiv.1| |.xiv.2| |.xiv.3| |.xiv.4| |.xiv.5|))))
+(assert (forall ((|A_0| Int) (|F| (Array Int Int)) (|B_0| Int) (|C| Int) (|E| (Array Int Int)) (|.xiv.1| Int) (|.xiv.2| (Array Int Int)) (|.xiv.3| Int) (|.xiv.4| Int) (|.xiv.5| (Array Int Int))) (=> (state |A_0| |F| |B_0| |C| |E|) false)))
+(check-sat)

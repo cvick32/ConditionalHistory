@@ -1,0 +1,6 @@
+(set-logic HORN)
+(declare-fun state ((Array Int Int) Bool) Bool)
+(assert (forall ((|A_0| (Array Int Int)) (|.loc.3| Bool) (|.loc.5| Bool) (|.y.4| (Array Int Int))) (=> (not .loc.3) (state |A_0| |.loc.3|))))
+(assert (forall ((|A_0| (Array Int Int)) (|.loc.3| Bool) (|.loc.5| Bool) (|.y.4| (Array Int Int))) (=> (and (state |A_0| |.loc.3|) (and (not .loc.3) .loc.5)) (state |.y.4| |.loc.5|))))
+(assert (forall ((|A_0| (Array Int Int)) (|.loc.3| Bool) (|.loc.5| Bool) (|.y.4| (Array Int Int))) (=> (state |A_0| |.loc.3|) (not .loc.3))))
+(check-sat)

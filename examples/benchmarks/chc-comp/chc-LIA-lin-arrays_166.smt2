@@ -1,0 +1,6 @@
+(set-logic HORN)
+(declare-fun state ((Array Int Int) Int Int Int) Bool)
+(assert (forall ((|A_0| (Array Int Int)) (|B_0| Int) (|C| Int) (|D_0| Int) (|E| Int) (|D| (Array Int Int)) (|.x.1| Int) (|.xpv.1| Int)) (=> (= B_0 C) (state |A_0| |B_0| |C| |D_0|))))
+(assert (forall ((|A_0| (Array Int Int)) (|B_0| Int) (|C| Int) (|D_0| Int) (|E| Int) (|D| (Array Int Int)) (|.x.1| Int) (|.xpv.1| Int)) (=> (and (state |A_0| |B_0| |C| |D_0|) (let ((.def_21 (select A_0 B_0))) (let ((.def_22 (select A_0 C))) (and (and (= (+ B_0 (* (- 1) E)) (- 1)) (= (ite (<= .def_22 .def_21) A_0 (store (store A_0 B_0 .def_22) C .def_21)) D)) (= C .x.1))))) (state |D| |E| |.x.1| |.xpv.1|))))
+(assert (forall ((|A_0| (Array Int Int)) (|B_0| Int) (|C| Int) (|D_0| Int) (|E| Int) (|D| (Array Int Int)) (|.x.1| Int) (|.xpv.1| Int)) (=> (state |A_0| |B_0| |C| |D_0|) (not (and (and (<= (select A_0 D_0) (select A_0 C)) (not (<= B_0 D_0))) (not (<= D_0 C)))))))
+(check-sat)

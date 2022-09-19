@@ -1,0 +1,6 @@
+(set-logic HORN)
+(declare-fun state () Bool)
+(assert (forall () (=> false (state ))))
+(assert (forall () (=> (and (state ) false) (state ))))
+(assert (forall () (=> (state ) false)))
+(check-sat)

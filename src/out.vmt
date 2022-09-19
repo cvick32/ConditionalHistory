@@ -1,0 +1,41 @@
+(declare-sort Arr 0)
+(declare-sort ArrOfArr 0)
+(declare-fun ConstArr (Int) Arr)
+(declare-fun Read (Arr Int) Int)
+(declare-fun ArrRead (ArrOfArr Int) Arr)
+(declare-fun ArrWrite (ArrOfArr Int Arr) ArrOfArr)
+(declare-fun Write (Arr Int Int) Arr)
+(declare-fun a () Arr)
+(declare-fun a_next () Arr)
+(define-fun .a () Arr (! a :next a_next))
+(declare-fun i () Int)
+(declare-fun i_next () Int)
+(define-fun .i () Int (! i :next i_next))
+(declare-fun N () Int)
+(declare-fun N_next () Int)
+(define-fun .N () Int (! N :next N_next))
+(declare-fun Z () Int)
+(declare-fun Z_next () Int)
+(define-fun .Z () Int (! Z :next Z_next))
+
+(define-fun init-conditions () Bool (!
+ (and
+(= i 0)
+) :init true))
+
+(define-fun trans-conditions () Bool (!
+ (and
+(let ((a!1 (=> (not (<= i 50)) (= (Write a i (* 2 i)) a_next))))
+  (and (=> (<= i 50) (= (Write a i i) a_next)) a!1))
+(< i N)
+(= (+ i 1) i_next)
+(= N N_next)
+(= Z Z_next)
+) :trans true))
+
+(define-fun property () Bool (!
+ (and
+(let ((a!1 (not (not (> (Read a Z) Z)))))
+  (=> (and (>= i N) (> Z 50) (< Z N)) (and a!1)))
+) :invar-property 0))
+
