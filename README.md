@@ -6,6 +6,16 @@
 - Install requirements
   - `python -m pip install -r requirements.txt`
 
+# Paper Results
+To see the result of each benchmark set on each tool you can look at
+the corresponding python script. For example, if you want to see how
+CondHist performed on the single loop benchmarks set you would open
+the file:
+`ConditionalHistory/paper-results/CondHist/aeval-single-results.py`.
+
+To see the numbers from the paper for each tool, benchmark combination
+run the `showPaperResults.sh` script in the top-level directory.
+
 # Running Experiments
 There are 3 different branches in this git repository. The main branch
 contains the code to run the following tools: CondHist, GSpacer, and

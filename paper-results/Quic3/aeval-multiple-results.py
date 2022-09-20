@@ -152,3 +152,7 @@ timeouts = [
     "../examples/benchmarks/horn-multiple/array_init_pair_symmetr4.smt2",
     "../examples/benchmarks/horn-multiple/array_init_addvar7.smt2",
 ]
+
+print(
+    f"Quic3 Multiple | good: {len(good)}, proph: {len(proph)}, timeout: {len(timeouts)}, error: {len(strange)}"
+)
