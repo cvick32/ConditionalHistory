@@ -135,6 +135,7 @@ def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num):
                 out = subprocess.run(full_args, capture_output=True)
                 time = datetime.now() - then
             except TimeoutError:
+                print("timeout")
                 test_timeouts.append(filename)
             except Exception as v:
                 test_strange[filename] = {"error": str(v)}
@@ -142,6 +143,7 @@ def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num):
                 stdout = out.stdout.decode()
                 stdout = stdout.strip()
                 if stdout == "sat":
+                    print("sat")
                     test_good[filename] = {"time": str(time)}
                 else:
                     test_strange[filename] = {
