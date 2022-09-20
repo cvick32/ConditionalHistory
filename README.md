@@ -22,6 +22,17 @@ UnCondHist2 variant.
 - Run 5 multi-loop benchmarks on Quic3
   - `python run_benchmarks.py Quic3 multiple --subset=5`
 
+
+## run_benchmarks.py Arguments
+
+- Tool Name
+  - one of {CondHist, Quic3, GSpacer, UnCondHist1, UnCondHist2}
+- Benchmark set
+  - one of {all, single, multiple}
+- Subset of benchmarks
+  - defaults to all
+  - run specified number of benchmarks
+
 ## Other Branches
 
 The versions of our tool that introduce unconditional history
