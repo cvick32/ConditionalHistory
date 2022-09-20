@@ -23,6 +23,9 @@ UnCondHist2 variant.
   - `python run_benchmarks.py Quic3 multiple --subset=5`
 
 
+All results will be in python files that can be viewed in the
+top-level directory under `results/{tool_name}/`.
+
 ## run_benchmarks.py Arguments
 
 - Tool Name
@@ -50,3 +53,26 @@ script detailed above to try the tool with the different benchmark
 sets.
 
 To get back to the main branch run: `git switch main`.
+
+# Reproducing Results
+To reproduce all the results from the paper in full you will need to
+run the following commands:
+
+- on branch `main`
+  - `python run_benchmarks.py CondHist all`
+  - `python run_benchmarks.py GSpacer all`
+  - `python run_benchmarks.py Quic3 all`
+
+- on branch `UnCondHist1`
+  - `python run_benchmarks.py UnCondHist1 all`
+
+- on branch `UnCondHist2`
+  - `python run_benchmarks.py UnCondHist2 all`
+
+Note that these commands will take multiple hours to complete. To run
+a subset of the benchmarks, use the `--subset` command line argument,
+demonstrated above.
+
+
+
+
