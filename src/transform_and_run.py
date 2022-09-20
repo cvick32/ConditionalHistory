@@ -45,14 +45,20 @@ def run_example(file):
     v = SmtToVmt(p.get_all_vars(), p.prop, filename)
     run_benchmark(filename, v, TIMEOUT_TIME)
 
+strange = ["array_even_odd_2.smt2", "array_index_compl.smt2", "array_split_17.smt2", "array_even_odd_1.smt2"]
 
-def run_aeval_single_ours(tool_name, num):
+
+def run_aeval_single_ours(tool_name, num, only_run):
     i = 0
     for filename in os.listdir(SINGLE):
         if i >= num:
             break
         i += 1
         if not is_benchmark_file(filename):
+            continue
+        if only_run and filename != only_run:
+            continue
+        if filename not in strange:
             continue
         problem = None
         with open(os.path.join(SINGLE, filename)) as f:
@@ -62,10 +68,12 @@ def run_aeval_single_ours(tool_name, num):
     write_test_results("aeval-single", tool_name)
 
 
-def run_aeval_multiple_ours(tool_name, num):
+def run_aeval_multiple_ours(tool_name, num, only_run):
     multi_inv = []
     for filename in os.listdir(MULTIPLE):
         if not is_benchmark_file(filename):
+            continue
+        if only_run and filename != only_run:
             continue
         multi_inv.append(
             {
@@ -113,7 +121,7 @@ def run_single_inv(single_inv, num):
         run_benchmark(si["filename"], problem, TIMEOUT_TIME)
 
 
-def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num):
+def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num, only_run_file):
     if tool_name == "Quic3":
         solver = QUIC3
         args = QUIC3_ARGS
@@ -126,6 +134,8 @@ def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num):
         if i >= num:
             break
         i += 1
+        if only_run_file and filename != only_run_file:
+            continue
         print(f"-----{filename}-----")
         filename = os.path.join(benchmark_set, filename)
         with timeout(TIMEOUT_TIME):
@@ -167,7 +177,6 @@ def run_benchmark(filename, smt_prob, timeout_time):
             test_timeouts.append(filename)
             return
         except Exception as v:
-            raise v
             test_strange[filename] = {"error": str(v)}
             print(v)
             return
@@ -214,32 +223,32 @@ def reset_test_categories():
     test_interp_doesnt_cover = []
 
 
-def run_aeval_single(tool_name, num_bench):
+def run_aeval_single(tool_name, num_bench, only_run):
     if num_bench is not None:
         num = num_bench
     else:
         num = 1000
     if tool_name == "Quic3":
-        run_benchmark_cmd("Quic3", SINGLE_CMD, "aeval-single", num)
+        run_benchmark_cmd("Quic3", SINGLE_CMD, "aeval-single", num, only_run)
     elif tool_name == "GSpacer":
-        run_benchmark_cmd("GSpacer", SINGLE_CMD, "aeval-single", num)
+        run_benchmark_cmd("GSpacer", SINGLE_CMD, "aeval-single", num, only_run)
     elif tool_name == "CondHist":
-        run_aeval_single_ours(tool_name, num)
+        run_aeval_single_ours(tool_name, num, only_run)
     else:
         raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch.")
 
 
-def run_aeval_multiple(tool_name, num_bench):
+def run_aeval_multiple(tool_name, num_bench, only_run):
     if num_bench is not None:
         num = num_bench
     else:
         num = 1000
     if tool_name == "Quic3":
-        run_benchmark_cmd("Quic3", MULTIPLE, "aeval-multiple", num)
+        run_benchmark_cmd("Quic3", MULTIPLE, "aeval-multiple", num, only_run)
     elif tool_name == "GSpacer":
-        run_benchmark_cmd("GSpacer", MULTIPLE, "aeval-multiple", num)
+        run_benchmark_cmd("GSpacer", MULTIPLE, "aeval-multiple", num, only_run)
     elif tool_name == "CondHist":
-        run_aeval_multiple_ours(tool_name, num)
+        run_aeval_multiple_ours(tool_name, num, only_run)
     else:
         raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch.")
 

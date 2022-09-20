@@ -13,6 +13,9 @@ Quic3. The UnCondHist1 branch contains the code for the UnCondHist1
 variant and the branch UnCondHist1 contains the code for the
 UnCondHist2 variant.
 
+Everytime an experiment is run it will update the python script that
+logs the results of that run in `./results/{tool_name}/`.
+
 - Change directories to `src`
   - `cd src`
 - Run all benchmarks on our tool
@@ -21,7 +24,8 @@ UnCondHist2 variant.
   - `python run_benchmarks.py CondHist single --subset=20`
 - Run 5 multi-loop benchmarks on Quic3
   - `python run_benchmarks.py Quic3 multiple --subset=5`
-
+- Run the `array_copy.smt2` benchmark on our tool
+  - `python run_benchmarks.py CondHist single --only_run=array_copy.smt2`
 
 All results will be in python files that can be viewed in the
 top-level directory under `results/{tool_name}/`.
@@ -35,6 +39,7 @@ top-level directory under `results/{tool_name}/`.
 - Subset of benchmarks
   - defaults to all
   - run specified number of benchmarks
+- Only run a particular file
 
 ## Other Branches
 
