@@ -45,8 +45,6 @@ def run_example(file):
     v = SmtToVmt(p.get_all_vars(), p.prop, filename)
     run_benchmark(filename, v, TIMEOUT_TIME)
 
-strange = ["array_even_odd_2.smt2", "array_index_compl.smt2", "array_split_17.smt2", "array_even_odd_1.smt2"]
-
 
 def run_aeval_single_ours(tool_name, num, only_run):
     i = 0
@@ -57,8 +55,6 @@ def run_aeval_single_ours(tool_name, num, only_run):
         if not is_benchmark_file(filename):
             continue
         if only_run and filename != only_run:
-            continue
-        if filename not in strange:
             continue
         problem = None
         with open(os.path.join(SINGLE, filename)) as f:
@@ -229,7 +225,7 @@ def run_aeval_single(tool_name, num_bench, only_run):
     else:
         num = 1000
     if tool_name == "UnCondHist1":
-        run_aeval_single_ours(tool_name, num)
+        run_aeval_single_ours(tool_name, num, only_run)
     else:
         raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly UnCondHist1 is available on this branch.")
 
@@ -240,7 +236,7 @@ def run_aeval_multiple(tool_name, num_bench, only_run):
     else:
         num = 1000
     if tool_name == "UnCondHist1":
-        run_aeval_multiple_ours(tool_name, num)
+        run_aeval_multiple_ours(tool_name, num, only_run)
     else:
         raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly UnCondHist1 is available on this branch.")
 
