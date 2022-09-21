@@ -5,8 +5,8 @@ import pprint
 
 class Synthesizer:
     def __init__(self, clauses, model, all_vars, step, prop, hist, length):
-        print(f"step: {step}")
         cond = hist.pc_ante[0]
+        self.all_clauses = set(clauses)
         self.safe_clauses = set(clauses)
         self.trigger_clauses = set(clauses)
         self.model = model
@@ -50,13 +50,16 @@ class Synthesizer:
                 clauses.add(cur_clause)
 
     def get_top_interpolant(self):
-        top = sorted(self.ranking)[-1]
-        top_interp = self.ranking[top]
-        pprint.pprint(self.ranking)
-        if top_interp in self.trigger_clauses:
-            return "trigger", top_interp
-        else:
-            return "safe", top_interp
+        try:
+            top = sorted(self.ranking)[-1]
+            top_interp = self.ranking[top]
+            pprint.pprint(self.ranking)
+            if top_interp in self.trigger_clauses:
+                return "trigger", top_interp
+            else:
+                return "safe", top_interp
+        except IndexError as e:
+            return "trigger", list(self.all_clauses)[-1]
 
     # def generate_interpolants(self):
     #     print("TRIGGERS:")
