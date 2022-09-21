@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/538743822.svg)](https://zenodo.org/badge/latestdoi/538743822)
+
 # Setup
 - Create a virtual environment
   - `python3 -m venv ch`
