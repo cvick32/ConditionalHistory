@@ -40,6 +40,13 @@ logs the results of that run in `./results/{tool_name}/`.
 All results will be in python files that can be viewed in the
 top-level directory under `results/{tool_name}/`.
 
+## Watching Results
+
+If at any point a certain benchmarks hangs, you can C-c out of that
+particular benchmark run and continue with the rest. The alternative
+is to close the entire shell session which will kill the entire
+benchmark run.
+
 ## run_benchmarks.py Arguments
 
 - Tool Name
@@ -69,6 +76,25 @@ sets.
 
 To get back to the main branch run: `git switch main`.
 
+## Output Files
+
+To view the output of our tool, first run a benchmark: `python
+run_benchmark.py CondHist single --only_run=array_copy.smt2`.
+
+Then, after that command terminates, view the `out.vmt` file in the
+`src` directory. This file is runnable in `ic3ia` like so: `ic3ia
+out.vmt`.
+
+## "Interesting" Benchmarks
+
+To find a benchmark that requires synthesizing a history condition you
+can look in the `interp` dictionary of
+`paper-results/CondHist/aeval-multiple-results.py`.
+
+Then, to run that benchmark, for instance `array_hybr_sum.smt2`, run:
+
+`python run_benchmarks.py CondHist multiple --only_run=array_hybr_sum.smt2`
+
 # Reproducing Results
 To reproduce all the results from the paper in full you will need to
 run the following commands:
@@ -84,9 +110,9 @@ run the following commands:
 - on branch `UnCondHist2`
   - `python run_benchmarks.py UnCondHist2 all`
 
-Note that these commands will take multiple hours to complete. To run
-a subset of the benchmarks, use the `--subset` command line argument,
-demonstrated above.
+Note that each of these commands will take from 1 to 2 hours to
+complete. To run a subset of the benchmarks, use the `--subset`
+command line argument, demonstrated above.
 
 
 

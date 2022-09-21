@@ -45,9 +45,6 @@ def run_example(file):
     v = SmtToVmt(p.get_all_vars(), p.prop, filename)
     run_benchmark(filename, v, TIMEOUT_TIME)
 
-strange = ["array_even_odd_2.smt2", "array_index_compl.smt2", "array_split_17.smt2", "array_even_odd_1.smt2"]
-
-
 def run_aeval_single_ours(tool_name, num, only_run):
     i = 0
     for filename in os.listdir(SINGLE):
@@ -57,8 +54,6 @@ def run_aeval_single_ours(tool_name, num, only_run):
         if not is_benchmark_file(filename):
             continue
         if only_run and filename != only_run:
-            continue
-        if filename not in strange:
             continue
         problem = None
         with open(os.path.join(SINGLE, filename)) as f:
