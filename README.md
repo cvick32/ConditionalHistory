@@ -8,6 +8,13 @@
 - Install requirements
   - `python -m pip install -r requirements.txt`
 
+These steps must be done in order to run the tool! Make sure that in
+the terminal there is an environment that precedes the command line.
+For instance, for a virtual environment named `ch`, after the
+environment is activates the command line of the terminal should be
+preceded by `(ch)`.
+
+
 # Paper Results
 To see the result of each benchmark set on each tool you can look at
 the corresponding python script. For example, if you want to see how
