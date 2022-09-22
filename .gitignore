@@ -1,6 +1,7 @@
 ch/
 __pycache__
 __init__.py
+src/__pycache__/
 *~
 latex/*.aux
 examples/benchmarks/chc-comp/*
