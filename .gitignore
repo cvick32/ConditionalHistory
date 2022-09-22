@@ -1,0 +1,8 @@
+ch/
+__pycache__
+__init__.py
+*~
+latex/*.aux
+examples/benchmarks/chc-comp/*
+solutions-and-interpolants/*
+vmt/*
