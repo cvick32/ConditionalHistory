@@ -298,14 +298,18 @@ class Sexpr:
 
 
 class ENode:
-    def __init__(self, head, args, z3_obj):
+
+    def __init__(self, head, args=[], z3_obj=None):
         self.head = head
         self.args = args
         str_arg = ""
         if self.args:
             str_arg = " " + str(self.args).replace("[", "").replace("]", "")
         self.repr_str = f"({str(self.head)}{str_arg})"
-        self.z3_obj = z3_obj
+        if z3_obj is None:
+            self.z3_obj = head
+        else:
+            self.z3_obj = z3_obj
 
     def var_string(self):
         return str(self.head)

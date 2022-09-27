@@ -13,6 +13,12 @@
 
 (rule (=> (> N 0) (inv a 0 (- N 1) m N)))
 
+
+; if j = n-1, then m_next = a[j]
+; else if a[j] > m, then m_next = a[j], else m
+
+; if a[i] > 0, a[i] = a[i] * -1, else a_next = a
+
 (rule (=> (and (inv a i j m N)
     (< i N) (>= j 0)
     (= m1 (ite (= j (- N 1)) (select a j) (ite (> (select a j) m) (select a j) m)))

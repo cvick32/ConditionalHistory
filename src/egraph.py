@@ -2,8 +2,8 @@ from collections import defaultdict
 import copy
 import itertools
 from z3 import *
-from functools import lru_cache
 
+from z3_defs import Write, Read
 from utils import match_step_str_to_var, ENode
 
 from array_axioms import ARRAY_AXIOMS
@@ -12,11 +12,10 @@ from variable import ImmutableVariable, ProphecyVariable
 
 
 class EGraph:
-    def __init__(self, z3_model, exprs, props, all_vars, cur_cex_steps, debug):
+    def __init__(self, z3_model, props, all_vars, cur_cex_steps, debug):
         self.enode_to_id_class = {}
         self.id_class_to_enodes = defaultdict(list)
         self.model = z3_model
-        self.exprs = exprs
         self.props = props
         self.all_vars = all_vars
         self.cur_cex_steps = cur_cex_steps
@@ -29,40 +28,60 @@ class EGraph:
         self.imm_var_to_id = {}
         self.debug = debug
 
-        self.used_transitions = []
-        for expr in exprs:
-            # TODO fix so we dont turn everything to strings
-            str_expr = str(expr.decl())
-            if str_expr == "Implies":
-                if not self.model.eval(expr.arg(0)):
-                    # remove unused implications in current model
-                    continue
-                else:
-                    self.used_transitions.append(expr)
-            elif str_expr == "And":
-                for c in expr.children():
-                    if not self.model.eval(c.arg(0)):
-                        # remove unused implications in current model
-                        continue
-                    else:
-                        self.used_transitions.append(c)
-            self.add_to_egraph(expr)
+        self.all_entries = []
+
+        for decl in self.model.decls():
+            self.add_to_egraph(decl)
+
         for prop in props:
             self.add_to_egraph(prop)
+        for entry in self.all_entries:
+            # processsing function interpretations
+            self.process_func_entry(entry)
         self.enodes = [e for e in self.enode_to_id_class.keys()]
         self.set_match_term()
 
-    def add_to_egraph(self, z3_def):
-        head = self.get_head_from_def(z3_def)
-        args = self.get_args_from_def(z3_def)
-        id_num = self.get_id_for_cur_def(z3_def)
-        enode = ENode(head, args, z3_def)
-        self.enode_to_id_class[enode] = id_num
-        if enode not in self.id_class_to_enodes[id_num]:
-            self.id_class_to_enodes[id_num].append(enode)
-        return enode
+    def add_to_egraph(self, z3_decl):
+        is_func = False
+        try:
+            is_func = isinstance(self.model[z3_decl], FuncInterp)
+        except:
+            pass
+        if is_func:
+            func_name = str(z3_decl)
+            for entry in self.model[z3_decl].as_list():
+                self.all_entries.append([func_name, entry])
+                if not isinstance(entry, list):
+                    # this is the "else" case of a function
+                    # just eval the function to get this?
+                    continue
+                if func_name == "Write":
+                    full_z3_term = Write(entry[0], entry[1], entry[2]) == entry[3]
+                elif func_name == "Read":
+                    full_z3_term = Read(entry[0], entry[1]) == entry[2]
+                else:
+                    print(f"new func: {func_name}")
+                    breakpoint()
+                self.add_to_egraph(full_z3_term)
+        else:
+            head = self.get_head_from_def(z3_decl)
+            args = self.get_args_from_def(z3_decl)
+            id_num = self.get_id_for_cur_def(z3_decl)
+            enode = ENode(head, args, z3_decl)
+            self.enode_to_id_class[enode] = id_num
+            if enode not in self.id_class_to_enodes[id_num]:
+                self.id_class_to_enodes[id_num].append(enode)
+            return enode
 
-    @lru_cache
+
+    def process_func_entry(self, entry):
+        func_name, terms = entry
+        if func_name == "Write":
+            pass
+        elif func_name == "Read":
+            pass
+
+
     def get_id_for_cur_def(self, z3_def):
         cur_z3_expr = z3_def
         cur_id = z3_def.get_id()
@@ -80,13 +99,17 @@ class EGraph:
         return cur_id
 
     def get_head_from_def(self, z3_def):
-        if z3_def.num_args():
+        if isinstance(z3_def, FuncDeclRef):
+            return z3_def
+        elif z3_def.num_args():
             return z3_def.decl()
         else:
             return z3_def
 
     def get_args_from_def(self, z3_def):
         args = []
+        if isinstance(z3_def, FuncDeclRef):
+            return []
         for i in range(0, z3_def.num_args()):
             cur_arg = z3_def.arg(i)
             arg_enode = self.add_to_egraph(cur_arg)
@@ -112,15 +135,11 @@ class EGraph:
         for z3_expr in z3_expr_list:
             self.push_on_match_term_stack_help(z3_expr)
         if prop:
-            inner_prop = z3_expr_list[0].children()[0].children()[1]  # Implies, RHS
-            for var in self.get_vars_from_z3_expr(inner_prop):
-                if var.is_dependent_var():
-                    for trans in self.used_transitions:
-                        if var.name not in str(trans.children()[-1]):
-                            # if var isn't in rhs of transition
-                            continue
-                        if var.match_z3_trans_constraint(trans):
-                            self.push_on_match_term_stack_help(trans.children()[1])
+            inner_prop = z3_expr_list[0].children()[1]
+            for enode in self.get_enodes_from_z3_expr(inner_prop):
+                self.add_to_egraph(enode.z3_obj)
+                for ec_enode in self.get_enodes_in_equiv_class(enode):
+                    self.push_on_match_term_stack_help(enode.z3_obj)
         self.match_against_enodes.append(self.new_match)
 
     def push_on_match_term_stack_help(self, z3_def):
@@ -160,12 +179,15 @@ class EGraph:
         for sub in self.match_term(match_term, cur_sub):
             if not sub or not all(sub.values()) or sub in self.seen_subs:
                 continue
+            self.debug_print(f"Full Sub: {sub}")
+            sub = self.replace_sub_terms_with_variables(sub)
+            self.debug_print(f"Full Sub after Var replacement: {sub}")
             self.seen_subs.append(sub)
             subs = self.get_sub_from_sub_list(sub)
             substitution = substitute(axiom.z3_def, subs)
-            self.debug_print(f"Full Sub: {sub}")
             if not self.eval_to_bool(substitution):
                 self.debug_print(f"AXIOM VIOLATION: {substitution}")
+                print(self.match_against_enodes)
                 needed_subs.append(sub)
                 axiom_violations.append(Violation(substitution, needed_subs, self))
                 return axiom_violations
@@ -173,11 +195,48 @@ class EGraph:
                 self.debug_print(f"Valid Axiom Instansiation: {substitution}")
                 if not axiom.recur_term == None:
                     recur_sub = substitute(axiom.recur_term, subs)
+                    print(f"Recur sub: {recur_sub}")
                     if recur_sub.children():
                         self.push_on_match_term_stack([recur_sub])
                         needed_subs.append(sub)
                         self.get_axiom_violations(needed_subs)
         return axiom_violations
+
+    def replace_sub_terms_with_variables(self, substitution):
+        new_sub = {}
+        for k in substitution.keys():
+            new_sub[k] = []
+            for sub_val in substitution[k]:
+                var_enode = self.get_var_enode_in_eclass(sub_val)
+                if var_enode is not None:
+                    new_sub[k].append(var_enode)
+            if new_sub[k] == []:
+                term_enode = self.find_var_term_for_constant(substitution[k][0].z3_obj)
+                new_sub[k] = [term_enode]
+        return new_sub
+
+    def find_var_term_for_constant(self, constant):
+        neg = constant * -1
+        res_enode = ENode(self.model.eval(neg))
+        eclass = self.get_enodes_in_equiv_class(res_enode)
+        if eclass:
+            for enode in eclass:
+                var = match_step_str_to_var(enode.var_string(), self.all_vars)
+                if var:
+                    return var
+                elif enode.args:
+                    z3_term = enode.z3_obj
+                    subs = []
+                    for child in z3_term.children():
+                        sub = (child, self.get_var_enode_in_eclass(ENode(child)).z3_obj)
+                        subs.append(sub)
+                    z3_sub = substitute(z3_term, subs)
+                    full_term = z3_sub * -1
+                    breakpoint()
+                    return ENode(full_term)
+                else:
+                    # enode is another constant
+                    pass
 
     def eval_to_bool(self, expr):
         cur_expr = expr
@@ -189,51 +248,14 @@ class EGraph:
         ret_sub = []
         for x in sub:
             ret_sub.append((x, sub[x][0].z3_obj))
-            # new_sub = self.find_immutable_term(sub, x)
-            # if new_sub is not None:
-            #     ret_sub.append(new_sub)
-            # else:
-            #     ret_sub.append((x, sub[x][0].z3_obj))
         return ret_sub
 
-    def find_immutable_term(self, sub, x):
-        for potential_sub in sub[x]:
-            if (
-                isinstance(
-                    match_step_str_to_var(str(potential_sub.z3_obj), self.all_vars),
-                    (ImmutableVariable, ProphecyVariable),
-                )
-                and not potential_sub.z3_obj.children()
-            ):
-                return (x, potential_sub.z3_obj)
-            eval_res = self.model.eval(potential_sub.z3_obj)
-            enode = ENode(eval_res, [], eval_res)
-            if enode in self.enode_to_id_class:
-                imm_var = self.get_immutable_var_in_eclass(enode)
-                if imm_var:
-                    potential_sub = ENode(imm_var.z3_obj, [], imm_var.z3_obj)
-            elif potential_sub.z3_obj.children():
-                # currently only goes down to a depth of 1
-                for i, child in enumerate(potential_sub.z3_obj.children()):
-                    eval_res = self.model.eval(child)
-                    enode = ENode(eval_res, [], eval_res)
-                    if enode not in self.enode_to_id_class:
-                        continue
-                    imm_var = self.get_immutable_var_in_eclass(enode)
-                    if imm_var:
-                        print(potential_sub)
-                        args = potential_sub.args
-                        args[i] = imm_var.z3_obj
-                        potential_sub = ENode(
-                            potential_sub.head,
-                            args,
-                            substitute(potential_sub.z3_obj, (child, imm_var.z3_obj)),
-                        )
 
     def match_term(self, t, sub):
         func, args = self.get_func_and_args_from_term(t)
         seen = []
         for enode in self.get_enodes_matching_head(func):
+            print(f"enode matching head: {enode}")
             for phi in self.match_list(args, enode.args, sub):
                 if not phi in seen:
                     seen.append(phi)
@@ -280,7 +302,9 @@ class EGraph:
             new_sub[t] = new_list
             return new_sub
         else:
+            print("NO")
             return
+
 
     def get_immutable_var_in_eclass(self, enode):
         if isinstance(
@@ -293,6 +317,14 @@ class EGraph:
             ):
                 return en
 
+    def get_var_enode_in_eclass(self, enode):
+        for en in self.get_enodes_in_equiv_class(enode):
+            var = match_step_str_to_var(en.var_string(), self.all_vars)
+            if var is not None:
+                frame = en.var_string().split("_")[-1]
+                var_expr = var.get_z3_var_for_step(frame)
+                return ENode(var_expr, [], var_expr)
+
     def get_enodes_matching_head(self, head):
         str_head = str(head)
         for enode in self.match_against_enodes[-1]:
@@ -303,6 +335,7 @@ class EGraph:
         str_head = str(head)
         for en in self.get_enodes_in_equiv_class(enode):
             if str(en.head) == str_head:
+                print(f"in equiv with matching head: {en}")
                 yield en
 
     def get_enodes_in_equiv_class(self, enode):
@@ -312,20 +345,18 @@ class EGraph:
     def get_func_and_args_from_term(self, t):
         return self.get_head_from_def(t), self.get_args(t)
 
-    def get_vars_from_z3_expr(self, z3_expr):
+    def get_enodes_from_z3_expr(self, z3_expr):
         while str(z3_expr.decl()) == "Implies":
             z3_expr = z3_expr.children()[1]
         while len(z3_expr.children()) == 1:
             z3_expr = z3_expr.children()[0]
-        vars = []
+        enodes = []
         to_consider = z3_expr.children()
         for child in to_consider:
             if len(child.children()) > 0:
                 to_consider.extend(child.children())
-            var = match_step_str_to_var(str(child), self.all_vars)
-            if var:
-                vars.append(var)
-        return vars
+            enodes.append(self.add_to_egraph(child))
+        return enodes
 
     def debug_print(self, s):
         if self.debug:

@@ -52,6 +52,9 @@ class Variable:
     def get_prop_antecedent(self):
         return None
 
+    def get_z3_var_for_step(self, i):
+        return Const(f"{self.name}_{i}", self.var_def.sort())
+
     def make_step_var_sub(self, step):
         """
         For translating IC3IA defs to Z3.

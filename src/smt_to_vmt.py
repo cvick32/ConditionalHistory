@@ -10,9 +10,9 @@ from variable import (
     Capture,
 )
 from countermodel import CounterModel
-from utils import timeout, write_list_to_file, unabstract_out_vmt
+from utils import timeout, write_list_to_file, unabstract_out_vmt, Translate
 from synthesizer import Synthesizer
-import z3_defs as z3_defs
+from z3_defs import * 
 
 
 IC3IA = "ic3ia"
@@ -49,6 +49,7 @@ class SmtToVmt:
         self.invariant = None
         # self.prophic3_bench = ""
         self.proph_axiom_instances = []
+        self.axiom_violations = []
 
     def get_vars(self):
         return list(self.all_vars)
@@ -65,28 +66,22 @@ class SmtToVmt:
 
     def run_loop(self, debug=True):
         self.debug = debug
-        if self.run_ic3ia():
-            return
         for count in range(0, CYCLES):
-            if not self.run_z3_bmc():
-                if self.run_ic3ia():
-                    print(f"Total cycles needed: {count}")
-                    print(f"Total Prophecy Variables needed: {self.num_proph}")
-                    if self.used_interpolants:
-                        print(f"Used Interpolants: {self.used_interpolants}")
-                    return
+            if self.run_ic3ia():
+                print(f"Total cycles needed: {count}")
+                print(f"Total Prophecy Variables needed: {self.num_proph}")
+                if self.used_interpolants:
+                    print(f"Used Interpolants: {self.used_interpolants}")
+                return
+            else:
+                self.check_axiom_instances()
         raise ValueError(f"Used more than {CYCLES} cycles.")
 
     def run_ic3ia(self):
         print("Running IC3IA...")
         self.build_vmt()
         write_list_to_file("out.vmt", self.vmt_model)
-        # if not self.prophic3_bench:
-        #     self.prophic3_bench = (
-        #         unabstract_out_vmt()
-        #     )  # puts out vmt in prophic3 format
         out = subprocess.run([IC3IA, "-w", self.filename], capture_output=True)
-        # breakpoint()
         return self.check_ic3ia_out(out)
 
     def get_highest_frame(self):
@@ -100,11 +95,11 @@ class SmtToVmt:
         stdout = out.stdout.decode()
         if "counterexample" in stdout:
             cex = stdout.split("search stats:")[0]
-            # print(f"ic3ia counterxample: {cex}")
             self.ic3ia_cex.add(cex)
             steps = cex.split("step")[1:]
             self.cur_cex_steps = len(steps)
             print(f"ic3ia Length: {len(steps)}")
+            ic3ia_countermodel = self.parse_ic3ia_cex(cex)
             return False
         elif "invariant" in stdout:
             print("Proved!")
@@ -123,6 +118,31 @@ class SmtToVmt:
                 print("IC3IA give 'Unknown' for interpolant vmt")
             else:
                 raise ValueError("Error in Vmt")
+
+    def parse_ic3ia_cex(self, cex_str):
+        cex_str = cex_str.replace("counterexample\n;; step 0\n", "")
+        cex_str = cex_str.replace("|Arr|", "Arr")
+        sexpr_list = Translate().parse_sexpr_string(cex_str)
+        z3_sexpr_list = []
+        parser = ParseToZ3(self.all_vars)
+        num_steps = self.cur_cex_steps - 1
+        for i, sexpr in enumerate(sexpr_list):
+            parser.set_step(i)
+            z3_sexpr_list.append(parser.parse_sexpr_to_z3(sexpr))
+            if i < num_steps:
+                axiom_violations_at_step = self.substitute_trans_constraints(self.axiom_violations, i)
+                z3_sexpr_list.extend(axiom_violations_at_step)
+        self.cur_prop = self.substitute_single_frame_constraints(self.prop_constraints, num_steps)
+        solver = Solver()
+        new_model = And(z3_sexpr_list)
+        new_prop = And(self.cur_prop)
+        solver.add(Not(Implies(new_model, new_prop)))
+        s = solver.check()
+        if str(s) == "unsat":
+            raise ValueError("Z3 model cannot be UNSAT")
+        self.cur_model = solver.model()
+        self.print_bmc_model()
+
 
     def build_vmt(self):
         """
@@ -172,9 +192,9 @@ class SmtToVmt:
         return sexprs
 
     def add_preliminary_defs(self):
-        for sort in z3_defs.all_sorts:
+        for sort in all_sorts:
             self.vmt_model.append(f"(declare-sort {sort.sexpr()} 0)")
-        for func in z3_defs.all_funcs:
+        for func in all_funcs:
             self.vmt_model.append(func.sexpr())
         for var in self.all_vars:
             self.vmt_model.append(var.get_def_sexpr())
@@ -217,6 +237,7 @@ class SmtToVmt:
         for violation in violations:
             self.debug_print(f"Processing Axiom Violation: {violation}")
             constraint = violation.get_constraint(self.cur_model.decls())
+            self.axiom_violations.append(constraint)
             if violation.is_init_violation():
                 self.add_init_constraints([constraint])
                 self.add_trans_constraints([constraint])
@@ -285,28 +306,11 @@ class SmtToVmt:
     def get_immutable_vars(self):
         return [var for var in self.all_vars if isinstance(var, ImmutableVariable)]
 
-    def run_z3_bmc(self):
-        s = Solver()
-        exprs, props = self.get_bmc_exprs()
-        new_model = And(exprs)
-        self.debug_print(f"Z3 exprs: {new_model}")
-        new_prop = And(props)
-        self.debug_print(f"Z3 prop: {new_prop}")
-        s.add(Not(Implies(new_model, new_prop)))
-        print("Running Z3...")
-        check = s.check()
-        if str(check) == "unsat":
-            self.debug_print(f"Z3 result: {check}")
-            return False
-        self.cur_model = s.model()
-        self.print_bmc_model()
-        self.check_axiom_instances(exprs, new_prop)
 
-    def check_axiom_instances(self, exprs, new_prop):
+    def check_axiom_instances(self):
         egraph = EGraph(
             self.cur_model,
-            exprs,
-            [new_prop],
+            self.cur_prop,
             self.all_vars,
             self.cur_cex_steps,
             self.debug,
@@ -318,38 +322,6 @@ class SmtToVmt:
             self.add_ic3ia_axiom_violations(violations)
         else:
             raise ValueError("No Axiom Violations Found!")
-
-    def get_bmc_exprs(self):
-        exprs = []
-        props = []
-        subs = []
-        for idx in range(0, self.cur_cex_steps):
-            if idx == 0:
-                exprs.extend(
-                    self.substitute_single_frame_constraints(self.init_constraints, idx)
-                )
-                exprs.extend(
-                    self.substitute_single_frame_constraints(self.aux_init_constraints, idx)
-                )
-                sub = self.get_subs_for_cex_step(idx)
-                subs.append(sub)
-            if idx == self.cur_cex_steps - 1:
-                props.extend(
-                    self.substitute_single_frame_constraints(self.prop_constraints, idx)
-                )
-            else:
-                exprs.extend(
-                    self.substitute_trans_constraints(self.trans_constraints, idx)
-                )
-                exprs.extend(
-                    self.substitute_trans_constraints(self.aux_trans_constraints, idx)
-                )
-                sub = self.get_subs_for_cex_step(idx) + self.get_subs_for_next_cex_step(
-                    idx + 1
-                )
-                subs.append(sub)
-        self.set_var_constraints_with_subs(subs)
-        return set(exprs), props
 
     def substitute_single_frame_constraints(self, constraints, cex_step):
         return [
@@ -365,10 +337,6 @@ class SmtToVmt:
             )
             for constraint in constraints
         ]
-
-    def set_var_constraints_with_subs(self, subs):
-        for var in self.all_vars:
-            var.store_z3_constraints(subs)
 
     def get_subs_for_cex_step(self, step):
         return [var.make_step_var_sub(step) for var in self.all_vars]

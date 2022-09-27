@@ -23,7 +23,6 @@ class Violation:
         self.axiom_instance = axiom_instance
         self.needed_subs = needed_subs
         self.control_path = egraph.control_path
-        self.used_transitions = egraph.used_transitions
         self.all_vars = egraph.all_vars
         self.props = egraph.props
         self.z3_model = egraph.model
@@ -31,7 +30,7 @@ class Violation:
         self.egraph = egraph
         self.prophecy_vars = []
         self.set_frame_numbers()
-        self.check_for_immutable_var_instance()
+        #self.check_for_immutable_var_instance()
         self.proph_next_var = False
         self.interp_clauses = None
 

@@ -34,6 +34,151 @@ all_sorts = [Arr, ArrOfArr]
 all_funcs = [ConstArr, Read, ArrRead, ArrWrite, Write]
 
 
+class ParseToZ3:
+    def __init__(
+        self,
+        all_vars,
+        bound_vars=None,
+        ite_var=None,
+        safety_var=None,
+        ignore_ite=None,
+        step=None,
+    ):
+        self.all_vars = all_vars
+        self.bound_vars = bound_vars
+        self.ite_var = ite_var
+        self.safety_var = safety_var
+        self.ignore_ite = ignore_ite
+        self.step = step
+
+    def set_step(self, step):
+        self.step = step
+
+    def get_arg_z3_expr(self, sexpr):
+        var_name_to_var = {var.get_name(): var for var in self.all_vars}
+        if isinstance(sexpr, Sexpr) or (not sexpr in var_name_to_var):
+            return self.parse_sexpr_to_z3(sexpr)
+        else:
+            if self.bound_vars is not None:
+                if not sexpr in self.bound_vars:
+                    return safety_var.var_def
+                else:
+                    return var_name_to_var[sexpr].var_def
+            else:
+                if sexpr in var_name_to_var:
+                    if self.step is not None:
+                        return var_name_to_var[sexpr].get_z3_var_for_step(self.step)
+                    return var_name_to_var[sexpr].var_def
+
+    def get_ite_if_and_else_expr(self, args):
+        """
+        Accounts for nested structure in some if statements.
+        Basically, we've already processed the nested if
+        in the right form so we don't need to set ite_var
+        equal in these cases.
+        """
+        if (
+            not isinstance(args[1], str)
+            and not isinstance(args[1], int)
+            and str(args[1].decl()) == "And"
+        ):
+            if_branch = args[1]
+        else:
+            if_branch = args[1] == self.ite_var
+        if (
+            not isinstance(args[2], str)
+            and not isinstance(args[2], int)
+            and str(args[2].decl()) == "And"
+        ):
+            else_branch = args[2]
+        else:
+            else_branch = args[2] == self.ite_var
+        return if_branch, else_branch
+
+    def get_args(self, sexpr):
+        args = []
+        for b in sexpr.body:
+            args.append(self.get_arg_z3_expr(b))
+        return args
+
+    def parse_sexpr_to_z3(self, sexpr):
+        if isinstance(sexpr, str):
+            if sexpr.strip("-").isnumeric():
+                return int(sexpr)
+            elif sexpr == "false":
+                return False
+            elif sexpr == "true":
+                return True
+        if sexpr.head == "as" and "@" in sexpr.body[0] and sexpr.body[1] == "Arr":
+            return Const(f"Arr{sexpr.body[0]}", Arr)
+        head = sexpr.head
+        args = self.get_args(sexpr)
+        if head == "store" or head == "Write":
+            if str(args[0].sort()) == "ArrOfArr":
+                return ArrWrite(args[0], args[1], args[2])
+            else:
+                return Write(args[0], args[1], args[2])
+        elif head == "select" or head == "Read":
+            if str(args[0].sort()) == "ArrOfArr":
+                return ArrRead(args[0], args[1])
+            else:
+                return Read(args[0], args[1])
+        elif head == "+":
+            # how to generate this automatically?
+            if len(args) == 3:
+                return args[0] + args[1] + args[2]
+            else:
+                return args[0] + args[1]
+        elif head == "-":
+            if len(args) == 3:
+                return args[0] - args[1] - args[2]
+            elif len(args) == 1:
+                return args[0] * -1
+            else:
+                return args[0] - args[1]
+        elif head == "*":
+            return args[0] * args[1]
+        elif head == "=>":
+            return Implies(args[0], args[1])
+        elif head == "or":
+            return Or(args[0], args[1])
+        elif head == "not":
+            return Not(args[0])
+        elif head == ">=":
+            return args[0] >= args[1]
+        elif head == "<=":
+            return args[0] <= args[1]
+        elif head == "<":
+            return args[0] < args[1]
+        elif head == ">":
+            return args[0] > args[1]
+        elif head == "=":
+            return args[0] == args[1]
+        elif head == "ite":
+            if ignore_ite:
+                return And(Implies(args[0], args[1]), Implies(Not(args[0]), args[2]))
+            else:
+                assert self.ite_var is not None, "Expected non-None ite_var"
+                if_branch, else_branch = self.get_ite_if_and_else_expr(args)
+                return And(
+                    Implies(args[0], if_branch), Implies(Not(args[0]), else_branch)
+                )
+        elif head == "and":
+            if len(args) == 1:
+                return args[0]
+            return And(args)
+        elif head == "mod":
+            return args[0] % args[1]
+        elif head == "Constarr":
+            return ConstArr(args[1])
+        elif head == "" and sexpr.body[0].head == "as":
+            return ConstArr(sexpr.body[1])
+        elif head == "as":
+            breakpoint()
+        else:
+            print(f"Unimplemented function call: {head}")
+
+
 def get_arg_z3_expr(sexpr, all_vars, bound_vars, ite_var, safety_var, ignore_ite):
     var_name_to_var = {var.get_name(): var for var in all_vars}
     next_var_name_to_var = {var.get_smt2_next_name(): var for var in all_vars}
