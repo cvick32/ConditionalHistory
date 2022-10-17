@@ -12,7 +12,7 @@ from variable import (
 from countermodel import CounterModel
 from utils import timeout, write_list_to_file, unabstract_out_vmt, Translate
 from synthesizer import Synthesizer
-from z3_defs import * 
+from z3_defs import *
 
 
 IC3IA = "ic3ia"

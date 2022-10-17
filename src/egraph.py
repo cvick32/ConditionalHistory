@@ -73,14 +73,12 @@ class EGraph:
                 self.id_class_to_enodes[id_num].append(enode)
             return enode
 
-
     def process_func_entry(self, entry):
         func_name, terms = entry
         if func_name == "Write":
             pass
         elif func_name == "Read":
             pass
-
 
     def get_id_for_cur_def(self, z3_def):
         cur_z3_expr = z3_def
@@ -207,10 +205,16 @@ class EGraph:
         for k in substitution.keys():
             new_sub[k] = []
             for sub_val in substitution[k]:
-                var_enode = self.get_var_enode_in_eclass(sub_val)
-                if var_enode is not None:
-                    new_sub[k].append(var_enode)
+                var = match_step_str_to_var(sub_val.var_string(), self.all_vars)
+                if var is not None:
+                    new_sub[k].append(sub_val)
+                term_enode = self.get_term_enode_in_eclass(sub_val)
+                if term_enode != sub_val:
+                    new_sub[k].append(term_enode)
             if new_sub[k] == []:
+                # at this point the given constant is in its own
+                # e-class, we need to start guessing how we got that
+                # constant from the model
                 term_enode = self.find_var_term_for_constant(substitution[k][0].z3_obj)
                 new_sub[k] = [term_enode]
         return new_sub
@@ -218,7 +222,10 @@ class EGraph:
     def find_var_term_for_constant(self, constant):
         neg = constant * -1
         res_enode = ENode(self.model.eval(neg))
-        eclass = self.get_enodes_in_equiv_class(res_enode)
+        try:
+            eclass = self.get_enodes_in_equiv_class(res_enode)
+        except:
+            return
         if eclass:
             for enode in eclass:
                 var = match_step_str_to_var(enode.var_string(), self.all_vars)
@@ -232,7 +239,6 @@ class EGraph:
                         subs.append(sub)
                     z3_sub = substitute(z3_term, subs)
                     full_term = z3_sub * -1
-                    breakpoint()
                     return ENode(full_term)
                 else:
                     # enode is another constant
@@ -249,7 +255,6 @@ class EGraph:
         for x in sub:
             ret_sub.append((x, sub[x][0].z3_obj))
         return ret_sub
-
 
     def match_term(self, t, sub):
         func, args = self.get_func_and_args_from_term(t)
@@ -305,7 +310,6 @@ class EGraph:
             print("NO")
             return
 
-
     def get_immutable_var_in_eclass(self, enode):
         if isinstance(
             match_step_str_to_var(enode.var_string(), self.all_vars), ImmutableVariable
@@ -317,13 +321,30 @@ class EGraph:
             ):
                 return en
 
-    def get_var_enode_in_eclass(self, enode):
+    def get_term_enode_in_eclass(self, enode):
         for en in self.get_enodes_in_equiv_class(enode):
-            var = match_step_str_to_var(en.var_string(), self.all_vars)
-            if var is not None:
-                frame = en.var_string().split("_")[-1]
-                var_expr = var.get_z3_var_for_step(frame)
-                return ENode(var_expr, [], var_expr)
+            if str(en.head) in ["Read", "Write", "ConstArr"]:
+                z3_func = self.get_array_func_from_str(str(en.head))
+                term_args = []
+                for arg in en.args:
+                    term_args.append(self.get_term_enode_in_eclass(arg))
+                z3_term = z3_func([t.z3_obj for t in term_args])
+                return ENode(en.head, term_args, z3_term)
+            else:
+                var = match_step_str_to_var(en.var_string(), self.all_vars)
+                if var is not None:
+                    frame = en.var_string().split("_")[-1]
+                    var_expr = var.get_z3_var_for_step(frame)
+                    return ENode(var_expr, [], var_expr)
+        return enode
+
+    def get_array_func_from_str(self, string):
+        if string == "Read":
+            return Read
+        elif string == "Write":
+            return Write
+        elif string == "ConstArr":
+            return ConstArr
 
     def get_enodes_matching_head(self, head):
         str_head = str(head)

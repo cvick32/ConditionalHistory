@@ -165,7 +165,7 @@ def run_benchmark(filename, smt_prob, timeout_time):
         try:
             then = datetime.now()
             print(f"-----{filename}-----")
-            smt_prob.run_loop(debug=True)
+            smt_prob.run_loop(debug=False)
             time = datetime.now() - then
             print(f"Total time: {datetime.now() - then}")
         except TimeoutError:
