@@ -1,6 +1,9 @@
 [![DOI](https://zenodo.org/badge/538743822.svg)](https://zenodo.org/badge/latestdoi/538743822)
 
 # Setup
+- Install Java 11 or greater
+  - `sudo apt update`
+  - `sudo apt install openjdk-17-jre-headless`
 - Create a virtual environment
   - `python3 -m venv ch`
 - Activate environment
@@ -11,7 +14,7 @@
 These steps must be done in order to run the tool! Make sure that in
 the terminal there is an environment that precedes the command line.
 For instance, for a virtual environment named `ch`, after the
-environment is activates the command line of the terminal should be
+environment is activated the command line of the terminal should be
 preceded by `(ch)`.
 
 
