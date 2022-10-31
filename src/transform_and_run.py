@@ -24,6 +24,10 @@ QUIC3_ARGS = "fp.spacer.q3.use_qgen=true fp.spacer.ground_pobs=false fp.spacer.m
 
 QUIC3 = "../solvers/z3"
 
+FREQHORN = "freqhorn"
+
+FREQHORN_ARGS = "" # no arguments specified in the paper https://www.cs.fsu.edu/~grigory/freqhorn-arrays.pdf
+
 benchmarks = "../examples/benchmarks/"
 examples = "../examples/"
 
@@ -123,6 +127,9 @@ def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num, only_run_fi
     elif tool_name == "GSpacer":
         solver = GSPACER
         args = GSPACER_ARGS
+    elif tool_name == "Freqhorn":
+        solver = FREQHORN
+        args = FREQHORN_ARGS
     args = args.split(" ")
     i = 0
     for filename in os.listdir(benchmark_set):
@@ -227,6 +234,8 @@ def run_aeval_single(tool_name, num_bench, only_run):
         run_benchmark_cmd("Quic3", SINGLE_CMD, "aeval-single", num, only_run)
     elif tool_name == "GSpacer":
         run_benchmark_cmd("GSpacer", SINGLE_CMD, "aeval-single", num, only_run)
+    elif tool_name == "Freqhorn":
+        run_benchmark_cmd("Freqhorn", SINGLE_CMD, "aeval-single", num, only_run)
     elif tool_name == "CondHist":
         run_aeval_single_ours(tool_name, num, only_run)
     else:
@@ -242,6 +251,8 @@ def run_aeval_multiple(tool_name, num_bench, only_run):
         run_benchmark_cmd("Quic3", MULTIPLE, "aeval-multiple", num, only_run)
     elif tool_name == "GSpacer":
         run_benchmark_cmd("GSpacer", MULTIPLE, "aeval-multiple", num, only_run)
+    elif tool_name == "Freqhorn":
+        run_benchmark_cmd("Freqhorn", MULTIPLE, "aeval-multiple", num, only_run)
     elif tool_name == "CondHist":
         run_aeval_multiple_ours(tool_name, num, only_run)
     else:
