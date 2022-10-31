@@ -121,12 +121,15 @@ def run_single_inv(single_inv, num):
 
 
 def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num, only_run_file):
+    q3_or_gspacer = False
     if tool_name == "Quic3":
         solver = QUIC3
         args = QUIC3_ARGS
+        q3_or_gspacer = True
     elif tool_name == "GSpacer":
         solver = GSPACER
         args = GSPACER_ARGS
+        q3_or_gspacer = True
     elif tool_name == "Freqhorn":
         solver = FREQHORN
         args = FREQHORN_ARGS
@@ -154,15 +157,26 @@ def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num, only_run_fi
             else:
                 stdout = out.stdout.decode()
                 stdout = stdout.strip()
-                if stdout == "sat":
-                    print("sat")
-                    test_good[filename] = {"time": str(time)}
+                if q3_or_gspacer:
+                    if stdout == "sat":
+                        print("sat")
+                        test_good[filename] = {"time": str(time)}
+                    else:
+                        test_strange[filename] = {
+                            "error": "FAILURE",
+                            "time": str(time),
+                            "out": stdout,
+                        }
                 else:
-                    test_strange[filename] = {
-                        "error": "FAILURE",
-                        "time": str(time),
-                        "out": stdout,
-                    }
+                    if "Success" in stdout:
+                        print("sat")
+                        test_good[filename] = {"time": str(time)}
+                    else:
+                        test_strange[filename] = {
+                            "error": "FAILURE",
+                            "time": str(time),
+                            "out": stdout,
+                        }
     write_test_results(write_out_name, tool_name)
 
 
