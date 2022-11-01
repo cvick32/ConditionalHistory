@@ -11,7 +11,7 @@
 (declare-var W Int)
 
 (declare-rel inv1 (Int Int Int Int Int Int (Array Int Int) (Array Int Int)))
-
+(declare-rel fail ())
 (rule (=>
        (= I N)
        (inv1 I K N M P Q A B)))
