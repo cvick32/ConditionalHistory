@@ -49,6 +49,7 @@ class SmtToVmt:
         self.invariant = None
         # self.prophic3_bench = ""
         self.proph_axiom_instances = []
+        self.num_refinements = 0
 
     def get_vars(self):
         return list(self.all_vars)
@@ -71,6 +72,7 @@ class SmtToVmt:
             if not self.run_z3_bmc():
                 if self.run_ic3ia():
                     print(f"Total cycles needed: {count}")
+                    self.num_refinements = count
                     print(f"Total Prophecy Variables needed: {self.num_proph}")
                     if self.used_interpolants:
                         print(f"Used Interpolants: {self.used_interpolants}")

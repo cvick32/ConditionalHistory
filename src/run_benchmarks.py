@@ -6,7 +6,7 @@ def get_args():
     parser = argparse.ArgumentParser(description="Arguments for experiment runs.")
     parser.add_argument(
         "tool",
-        choices=["all", "CondHist", "UnCondHist1", "UnCondHist2", "Quic3", "GSpacer"],
+        choices=["all", "CondHist", "UnCondHist1", "UnCondHist2", "Quic3", "GSpacer", "Freqhorn"],
         help="Choose a tool to run.",
     )
     parser.add_argument(
