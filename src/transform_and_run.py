@@ -26,7 +26,7 @@ QUIC3 = "../solvers/z3"
 
 FREQHORN = "freqhorn"
 
-FREQHORN_ARGS = "" # no arguments specified in the paper https://www.cs.fsu.edu/~grigory/freqhorn-arrays.pdf
+FREQHORN_ARGS = ""  # no arguments specified in the paper https://www.cs.fsu.edu/~grigory/freqhorn-arrays.pdf
 
 benchmarks = "../examples/benchmarks/"
 examples = "../examples/"
@@ -48,6 +48,7 @@ def run_example(file):
         p = SmtProblem(f.read())
     v = SmtToVmt(p.get_all_vars(), p.prop, filename)
     run_benchmark(filename, v, TIMEOUT_TIME)
+
 
 def run_aeval_single_ours(tool_name, num, only_run):
     i = 0
@@ -169,7 +170,7 @@ def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num, only_run_fi
                         }
                 else:
                     if "Success" in stdout:
-                        print("sat")
+                        print(stdout)
                         test_good[filename] = {"time": str(time)}
                     else:
                         test_strange[filename] = {
@@ -201,14 +202,23 @@ def run_benchmark(filename, smt_prob, timeout_time):
             return
         else:
             if smt_prob.num_proph > 0 and smt_prob.used_interpolants == []:
-                test_proph[filename] = {"time": str(time)}
+                test_proph[filename] = {
+                    "time": str(time),
+                    "num_refinements": smt_prob.num_refinements,
+                    "num_proph": smt_prob.num_proph,
+                }
             if smt_prob.used_interpolants:
                 test_interp[filename] = {
                     "time": str(time),
+                    "num_refinements": smt_prob.num_refinements,
+                    "num_proph": smt_prob.num_proph,
                     "interpolant": str(smt_prob.used_interpolants),
                 }
             else:
-                test_good[filename] = {"time": str(time)}
+                test_good[filename] = {
+                    "time": str(time),
+                    "num_refinements": smt_prob.num_refinements
+                }
 
 
 def write_test_results(dataset, tool_name):
@@ -253,7 +263,9 @@ def run_aeval_single(tool_name, num_bench, only_run):
     elif tool_name == "CondHist":
         run_aeval_single_ours(tool_name, num, only_run)
     else:
-        raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch.")
+        raise ValueError(
+            f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch."
+        )
 
 
 def run_aeval_multiple(tool_name, num_bench, only_run):
@@ -270,6 +282,6 @@ def run_aeval_multiple(tool_name, num_bench, only_run):
     elif tool_name == "CondHist":
         run_aeval_multiple_ours(tool_name, num, only_run)
     else:
-        raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch.")
-
-
+        raise ValueError(
+            f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch."
+        )
