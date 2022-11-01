@@ -24,6 +24,10 @@ QUIC3_ARGS = "fp.spacer.q3.use_qgen=true fp.spacer.ground_pobs=false fp.spacer.m
 
 QUIC3 = "../solvers/z3"
 
+FREQHORN = "freqhorn"
+
+FREQHORN_ARGS = ""  # no arguments specified in the paper https://www.cs.fsu.edu/~grigory/freqhorn-arrays.pdf
+
 benchmarks = "../examples/benchmarks/"
 examples = "../examples/"
 
@@ -118,12 +122,18 @@ def run_single_inv(single_inv, num):
 
 
 def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num, only_run_file):
+    q3_or_gspacer = False
     if tool_name == "Quic3":
         solver = QUIC3
         args = QUIC3_ARGS
+        q3_or_gspacer = True
     elif tool_name == "GSpacer":
         solver = GSPACER
         args = GSPACER_ARGS
+        q3_or_gspacer = True
+    elif tool_name == "Freqhorn":
+        solver = FREQHORN
+        args = FREQHORN_ARGS
     args = args.split(" ")
     i = 0
     for filename in os.listdir(benchmark_set):
@@ -148,15 +158,26 @@ def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num, only_run_fi
             else:
                 stdout = out.stdout.decode()
                 stdout = stdout.strip()
-                if stdout == "sat":
-                    print("sat")
-                    test_good[filename] = {"time": str(time)}
+                if q3_or_gspacer:
+                    if stdout == "sat":
+                        print("sat")
+                        test_good[filename] = {"time": str(time)}
+                    else:
+                        test_strange[filename] = {
+                            "error": "FAILURE",
+                            "time": str(time),
+                            "out": stdout,
+                        }
                 else:
-                    test_strange[filename] = {
-                        "error": "FAILURE",
-                        "time": str(time),
-                        "out": stdout,
-                    }
+                    if "Success" in stdout:
+                        print(stdout)
+                        test_good[filename] = {"time": str(time)}
+                    else:
+                        test_strange[filename] = {
+                            "error": "FAILURE",
+                            "time": str(time),
+                            "out": stdout,
+                        }
     write_test_results(write_out_name, tool_name)
 
 
@@ -181,14 +202,23 @@ def run_benchmark(filename, smt_prob, timeout_time):
             return
         else:
             if smt_prob.num_proph > 0 and smt_prob.used_interpolants == []:
-                test_proph[filename] = {"time": str(time)}
+                test_proph[filename] = {
+                    "time": str(time),
+                    "num_refinements": smt_prob.num_refinements,
+                    "num_proph": smt_prob.num_proph,
+                }
             if smt_prob.used_interpolants:
                 test_interp[filename] = {
                     "time": str(time),
+                    "num_refinements": smt_prob.num_refinements,
+                    "num_proph": smt_prob.num_proph,
                     "interpolant": str(smt_prob.used_interpolants),
                 }
             else:
-                test_good[filename] = {"time": str(time)}
+                test_good[filename] = {
+                    "time": str(time),
+                    "num_refinements": smt_prob.num_refinements
+                }
 
 
 def write_test_results(dataset, tool_name):
@@ -229,7 +259,6 @@ def run_aeval_single(tool_name, num_bench, only_run):
     else:
         raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly UnCondHist1 is available on this branch.")
 
-
 def run_aeval_multiple(tool_name, num_bench, only_run):
     if num_bench is not None:
         num = num_bench
@@ -239,5 +268,3 @@ def run_aeval_multiple(tool_name, num_bench, only_run):
         run_aeval_multiple_ours(tool_name, num, only_run)
     else:
         raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly UnCondHist1 is available on this branch.")
-
-
