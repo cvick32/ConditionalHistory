@@ -30,6 +30,7 @@ class Violation:
         self.debug = egraph.debug
         self.egraph = egraph
         self.prophecy_vars = []
+        self.length = egraph.cur_cex_steps
         self.set_frame_numbers()
         self.proph_next_var = False
         self.interp_clauses = None
