@@ -117,6 +117,7 @@ def run_single_inv(single_inv, num):
         f = si["filename"]
         sit = SingleInvariantTransform(si["sexprs"])
         all_vars, prop, control_flow = sit.get_problem_args()
+        all_vars = remove_next_references(all_vars)
         problem = SmtToVmt(all_vars, prop, f, control_flow=control_flow)
         run_benchmark(si["filename"], problem, TIMEOUT_TIME)
 
@@ -268,3 +269,36 @@ def run_aeval_multiple(tool_name, num_bench, only_run):
         run_aeval_multiple_ours(tool_name, num, only_run)
     else:
         raise ValueError(f"Tool {tool_name} not found. Are you on the correct branch?\nOnly UnCondHist1 is available on this branch.")
+
+def remove_next_references(all_vars):
+    rmap = defaultdict(list)
+    for v in all_vars:
+        if isinstance(v, StateVariable):
+            for tr in v.trans_constraints:
+                if str(tr.decl()) == "Implies":
+                    rhs = tr.arg(1)
+                    if str(rhs.decl()) == "==":
+                        erhs = rhs.arg(1)
+                        if str(erhs) == v.get_next_name():
+                            rmap[tr.arg(0)].append((erhs, rhs.arg(0)))
+    new_vars = []
+    for v in all_vars:
+        if isinstance(v, StateVariable) and v.trans_constraints is not None:
+            new_trs = []
+            for tr in v.trans_constraints:
+                if str(tr.decl()) == "Implies":
+                    cond = tr.arg(0)
+                    asg = tr.arg(1)
+                    if str(asg.decl()) == "==":
+                        val = asg.arg(0)
+                        var = asg.arg(1)
+                        if cond in rmap:
+                            subs = rmap[cond].copy()
+                            # orig_tr = tr
+                            tr = Implies(cond, substitute(val, subs) == var)
+                            # if not tr.eq(orig_tr):
+                            #     print ("orig tr: {}".format(orig_tr))
+                            #     print ("new tr: {}".format(tr))
+                new_trs.append(tr)
+            v.trans_constraints = new_trs
+    return all_vars

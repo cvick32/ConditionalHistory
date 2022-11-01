@@ -26,11 +26,11 @@ class Violation:
         self.used_transitions = egraph.used_transitions
         self.all_vars = egraph.all_vars
         self.props = egraph.props
-        self.length = egraph.cur_cex_steps
         self.z3_model = egraph.model
         self.debug = egraph.debug
         self.egraph = egraph
         self.prophecy_vars = []
+        self.length = egraph.cur_cex_steps
         self.set_frame_numbers()
         self.check_for_immutable_var_instance()
         self.proph_next_var = False
@@ -69,20 +69,6 @@ class Violation:
                     )
                     self.set_frame_numbers()
                     break
-
-    def check_history_kills(self, hist):
-        clause = hist.get_current_history_condition()
-        for i in range(0, self.highest_frame):
-            if not self.check_clause_on_model_and_step(clause, i):
-                return False
-        return self.check_clause_on_model_and_step(clause, self.highest_frame)
-
-    def check_clause_on_model_and_step(self, clause, step):
-        sub_clause = substitute(
-            substitute(clause, self.get_subs_for_cex_step(step)),
-            self.get_subs_for_next_cex_step(step + 1),
-        )
-        return self.z3_model.eval(sub_clause)
 
     def is_init_violation(self):
         return (len(self.frame_numbers) == 1 and 0 in self.frame_numbers) or len(
@@ -200,12 +186,7 @@ class Violation:
         history = var_to_proph
         for i in range(0, self.length - int(proph_frame)):
             history = HistoryVariable(
-                history,
-                equal_enode_var_defs,
-                cpes,
-                pc_var,
-                pc_val,
-                num_proph,
+                history, equal_enode_var_defs, cpes, pc_var, pc_val, num_proph
             )
             hist_vars.append(history)
         prophecy = ProphecyVariable(var_to_proph, expr_to_proph, history, num_proph)
@@ -373,6 +354,7 @@ class Violation:
             )
             for i in self.all_interpolants:
                 i.cleanup_let_statements()
+                pprint.pprint(i)
             important_interps = []
             for i in self.all_interpolants[self.highest_frame - 1 :]:
                 vmt_interpolant = self.create_vmt_interpolant(i)
@@ -496,8 +478,14 @@ class Violation:
                     trans_sexpr = self.get_trans_sexpr(var, step)
                     trans_sexpr.cleanup_let_statements()
                     for impl in trans_sexpr.body:
-                        if isinstance(impl, Sexpr):
-                            impl.remove_nested_single_ands()
+                        try:
+                            if (
+                                len(impl.body[0].body[0].body) == 1
+                                and impl.body[0].body[0].head == "and"
+                            ):
+                                impl.body[0].body[0] = impl.body[0].body[0].body[0]
+                        except:
+                            continue
                     and_sexpr.add_body(trans_sexpr)
             if step == sorted_steps[-1]:
                 prop_sexpr_list = self.get_prop_sexpr_list()
@@ -514,10 +502,6 @@ class Violation:
         val = str(self.z3_model[z3_var])
         if "-" in val:  # negative number
             val = Sexpr("-", [val.replace("-", "")])
-        elif val == "False":
-            return [Sexpr("not", [str_z3_var])]
-        elif val == "True":
-            return [str_z3_var]
         elif self.z3_model[z3_var].sort().name() == "Arr":
             for var_def in self.all_vars:
                 if var_def.match_step_str(str_z3_var):
@@ -538,7 +522,7 @@ class Violation:
                                 ),
                             )
                             init_sexprs.append(sexpr)
-        init_sexprs.append(Sexpr("=", [str_z3_var, val]))
+        init_sexprs.append(Sexpr("=", [str_z3_var, val]))  # maybe comment out
         return init_sexprs
 
     def get_trans_sexpr(self, var_expr, step):
@@ -552,18 +536,11 @@ class Violation:
             next_subs = self.get_subs_for_next_cex_step(int(step) + 1)
             for var in self.all_vars:
                 if var.match_step_str(str(var_expr)):
-                    try:
-                        tc = [
-                            substitute(substitute(tc, cur_subs), next_subs)
-                            for tc in var.get_trans_constraints()
-                        ]
-                    except:
-                        breakpoint()
-                    if len(tc) > 1:
-                        tc = And(tc)
-                    else:
-                        tc = tc[0]
-                    var_sexpr = Translate().parse_sexpr_string(tc.sexpr())[0]
+                    tc = [
+                        substitute(substitute(tc, cur_subs), next_subs)
+                        for tc in var.get_trans_constraints()
+                    ]
+                    var_sexpr = Translate().parse_sexpr_string(And(tc).sexpr())[0]
                     break
         return var_sexpr
 

@@ -19,7 +19,6 @@ class EGraph:
         self.exprs = exprs
         self.props = props
         self.all_vars = all_vars
-        self.cur_cex_steps = cur_cex_steps
         self.axioms = ARRAY_AXIOMS
         self.match_against_enodes = []
         self.control_path = set()
@@ -28,15 +27,32 @@ class EGraph:
         self.z3_expr_to_id_memo = {}
         self.imm_var_to_id = {}
         self.debug = debug
-
+        self.cur_cex_steps = cur_cex_steps
         self.constarr_terms = []
         self.constarr_term_set = set([])
         self.write_terms = []
         self.write_term_set = set([])
         self.index_terms = []
         self.index_term_set = set([])
+
         self.used_transitions = []
         for expr in exprs:
+            # TODO fix so we dont turn everything to strings
+            self.used_transitions.append(expr)
+            # str_expr = str(expr.decl())
+            # if str_expr == "Implies":
+            #     if not self.model.eval(expr.arg(0)):
+            #         # remove unused implications in current model
+            #         continue
+            #     else:
+            #         self.used_transitions.append(expr)
+            # elif str_expr == "And":
+            #     for c in expr.children():
+            #         if not self.model.eval(c.arg(0)):
+            #             # remove unused implications in current model
+            #             continue
+            #         else:
+            #             self.used_transitions.append(c)
             self.add_to_egraph(expr)
         for prop in props:
             self.add_to_egraph(prop)
@@ -64,7 +80,7 @@ class EGraph:
                 self.constarr_term_set.add(z3_def)
                 self.constarr_terms.append(z3_def)
         return enode
-    
+
     def check_violated(self, violated):
         s = Solver()
         flags = []
@@ -92,6 +108,7 @@ class EGraph:
         if z3_def not in self.index_term_set:
             self.index_term_set.add(z3_def)
             self.index_terms.append(z3_def)
+
     @lru_cache
     def get_id_for_cur_def(self, z3_def):
         cur_z3_expr = z3_def
@@ -199,7 +216,7 @@ class EGraph:
                         new_violated.append(axiom)
             if len(new_violated) == 0:
                 print("no new violations")
-                exit(1)
+                raise ValueError("Should not be doing this")
                 break
             violated.extend(new_violated)
             used = self.check_violated(violated)
