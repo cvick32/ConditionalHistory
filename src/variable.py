@@ -226,6 +226,8 @@ class ImmutableVariable(Variable):
                     self.init_constraints.append(self.var_def > 1)
                 else:
                     self.init_constraints.append(ic)
+            else:
+                self.init_constraints.append(ic)
         except:
             self.init_constraints.append(ic)
 
