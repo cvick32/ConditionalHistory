@@ -1,4 +1,4 @@
-from z3 import Const, And, Implies, Or, Not, substitute, Bool
+from z3 import Const, And, Implies, Or, Not, substitute, Bool, IntNumRef
 from copy import copy
 
 from utils import regex_var_matcher
@@ -221,8 +221,13 @@ class ImmutableVariable(Variable):
 
     def add_init_constraint(self, ic):
         try:
-            if str(ic.decl()) == "=":
-                if ic.arg(0) > 50 or ic.arg(1) > 50:
+            if str(ic.decl()) == "==":
+                num = None
+                if isinstance(ic.arg(0), IntNumRef):
+                    num = ic.arg(0).as_long()
+                if isinstance(ic.arg(1), IntNumRef):
+                    num = ic.arg(1).as_long()
+                if num > 50:
                     self.init_constraints.append(self.var_def > 1)
                 else:
                     self.init_constraints.append(ic)
