@@ -283,10 +283,10 @@ def remove_next_references(all_vars):
                     if str(rhs.decl()) == "==":
                         erhs = rhs.arg(1)
                         if str(erhs) == v.get_next_name():
-                            rmap[tr.arg(0)].append((erhs, rhs.arg(0)))
+                            rmap[tr.arg(0)].append((erhs,rhs.arg(0)))
     new_vars = []
     for v in all_vars:
-        if isinstance(v, StateVariable) and v.trans_constraints is not None:
+        if isinstance(v,StateVariable) and v.trans_constraints is not None:
             new_trs = []
             for tr in v.trans_constraints:
                 if str(tr.decl()) == "Implies":
