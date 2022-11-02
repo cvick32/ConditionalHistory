@@ -7,6 +7,7 @@ import json
 from z3 import Implies, substitute
 import subprocess
 
+from collections import defaultdict
 from transforms.multi_inv_transform import MultiInvariantTransform
 from transforms.single_inv_transform import SingleInvariantTransform
 from transforms.single_rule_horn_transform import SingleRuleHornTransform
@@ -63,7 +64,9 @@ def run_aeval_single_ours(tool_name, num, only_run):
         problem = None
         with open(os.path.join(SINGLE, filename)) as f:
             problem = SmtProblem(f.read())
-        v = SmtToVmt(problem.get_all_vars(), problem.prop, filename)
+        all_vars = problem.get_all_vars()
+        all_vars = remove_next_references(all_vars)
+        v = SmtToVmt(all_vars, problem.prop, filename)
         run_benchmark(filename, v, TIMEOUT_TIME)
     write_test_results("aeval-single", tool_name)
 
