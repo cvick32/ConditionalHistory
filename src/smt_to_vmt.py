@@ -50,6 +50,7 @@ class SmtToVmt:
         # self.prophic3_bench = ""
         self.proph_axiom_instances = []
         self.axiom_violations = []
+        self.num_refinements = 0
 
     def get_vars(self):
         return list(self.all_vars)
@@ -67,14 +68,14 @@ class SmtToVmt:
     def run_loop(self, debug=True):
         self.debug = debug
         for count in range(0, CYCLES):
-            if self.run_ic3ia():
-                print(f"Total cycles needed: {count}")
-                print(f"Total Prophecy Variables needed: {self.num_proph}")
-                if self.used_interpolants:
-                    print(f"Used Interpolants: {self.used_interpolants}")
-                return
-            else:
-                self.check_axiom_instances()
+            if not self.run_z3_bmc():
+                if self.run_ic3ia():
+                    print(f"Total cycles needed: {count}")
+                    self.num_refinements = count
+                    print(f"Total Prophecy Variables needed: {self.num_proph}")
+                    if self.used_interpolants:
+                        print(f"Used Interpolants: {self.used_interpolants}")
+                    return
         raise ValueError(f"Used more than {CYCLES} cycles.")
 
     def run_ic3ia(self):
@@ -251,15 +252,11 @@ class SmtToVmt:
                     if not violation.check_history_kills(hist):
                         print("Trying interpolation")
                         i_type, interp = self.get_top_interpolant(hist)
-                        print ("type: {} interp: {}".format(i_type,interp))
                         self.used_interpolants.append(interp)
                         if i_type == "safe":
                             hist.set_safe_interp_trans(interp)
                         else:
                             hist.set_trigger_interp_trans(interp)
-                    print ("hist: {}".format(repr(hist)))
-                    for tc in hist.trans_constraints:
-                        print ("tc: {}".format(tc))
                     self.add_history_var(hist)
                     self.add_prophecy_var(proph)
                     print(f"Axiom Violation with Prophecy: {axiom_instance}")

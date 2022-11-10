@@ -1,6 +1,5 @@
 from z3 import substitute, Not, And
 from collections import defaultdict
-import pprint
 
 
 class Synthesizer:
@@ -53,7 +52,6 @@ class Synthesizer:
         try:
             top = sorted(self.ranking)[-1]
             top_interp = self.ranking[top]
-            pprint.pprint(self.ranking)
             if top_interp in self.trigger_clauses:
                 return "trigger", top_interp
             else:

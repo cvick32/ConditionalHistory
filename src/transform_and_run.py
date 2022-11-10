@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 from z3 import Implies, substitute
 import subprocess
-
+from collections import defaultdict
 from transforms.multi_inv_transform import MultiInvariantTransform
 from transforms.single_inv_transform import SingleInvariantTransform
 from transforms.single_rule_horn_transform import SingleRuleHornTransform
@@ -23,6 +23,10 @@ GSPACER = "../solvers/gspacer"
 QUIC3_ARGS = "fp.spacer.q3.use_qgen=true fp.spacer.ground_pobs=false fp.spacer.mbqi=false fp.spacer.use_euf_gen=true"
 
 QUIC3 = "../solvers/z3"
+
+FREQHORN = "freqhorn"
+
+FREQHORN_ARGS = ""  # no arguments specified in the paper https://www.cs.fsu.edu/~grigory/freqhorn-arrays.pdf
 
 benchmarks = "../examples/benchmarks/"
 examples = "../examples/"
@@ -59,7 +63,9 @@ def run_aeval_single_ours(tool_name, num, only_run):
         problem = None
         with open(os.path.join(SINGLE, filename)) as f:
             problem = SmtProblem(f.read())
-        v = SmtToVmt(problem.get_all_vars(), problem.prop, filename)
+        all_vars = problem.get_all_vars()
+        all_vars = remove_next_references(all_vars)
+        v = SmtToVmt(all_vars, problem.prop, filename)
         run_benchmark(filename, v, TIMEOUT_TIME)
     write_test_results("aeval-single", tool_name)
 
@@ -113,17 +119,24 @@ def run_single_inv(single_inv, num):
         f = si["filename"]
         sit = SingleInvariantTransform(si["sexprs"])
         all_vars, prop, control_flow = sit.get_problem_args()
+        all_vars = remove_next_references(all_vars)
         problem = SmtToVmt(all_vars, prop, f, control_flow=control_flow)
         run_benchmark(si["filename"], problem, TIMEOUT_TIME)
 
 
 def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num, only_run_file):
+    q3_or_gspacer = False
     if tool_name == "Quic3":
         solver = QUIC3
         args = QUIC3_ARGS
+        q3_or_gspacer = True
     elif tool_name == "GSpacer":
         solver = GSPACER
         args = GSPACER_ARGS
+        q3_or_gspacer = True
+    elif tool_name == "Freqhorn":
+        solver = FREQHORN
+        args = FREQHORN_ARGS
     args = args.split(" ")
     i = 0
     for filename in os.listdir(benchmark_set):
@@ -148,15 +161,26 @@ def run_benchmark_cmd(tool_name, benchmark_set, write_out_name, num, only_run_fi
             else:
                 stdout = out.stdout.decode()
                 stdout = stdout.strip()
-                if stdout == "sat":
-                    print("sat")
-                    test_good[filename] = {"time": str(time)}
+                if q3_or_gspacer:
+                    if stdout == "sat":
+                        print("sat")
+                        test_good[filename] = {"time": str(time)}
+                    else:
+                        test_strange[filename] = {
+                            "error": "FAILURE",
+                            "time": str(time),
+                            "out": stdout,
+                        }
                 else:
-                    test_strange[filename] = {
-                        "error": "FAILURE",
-                        "time": str(time),
-                        "out": stdout,
-                    }
+                    if "Success" in stdout:
+                        print(stdout)
+                        test_good[filename] = {"time": str(time)}
+                    else:
+                        test_strange[filename] = {
+                            "error": "FAILURE",
+                            "time": str(time),
+                            "out": stdout,
+                        }
     write_test_results(write_out_name, tool_name)
 
 
@@ -181,14 +205,23 @@ def run_benchmark(filename, smt_prob, timeout_time):
             return
         else:
             if smt_prob.num_proph > 0 and smt_prob.used_interpolants == []:
-                test_proph[filename] = {"time": str(time)}
+                test_proph[filename] = {
+                    "time": str(time),
+                    "num_refinements": smt_prob.num_refinements,
+                    "num_proph": smt_prob.num_proph,
+                }
             if smt_prob.used_interpolants:
                 test_interp[filename] = {
                     "time": str(time),
+                    "num_refinements": smt_prob.num_refinements,
+                    "num_proph": smt_prob.num_proph,
                     "interpolant": str(smt_prob.used_interpolants),
                 }
             else:
-                test_good[filename] = {"time": str(time)}
+                test_good[filename] = {
+                    "time": str(time),
+                    "num_refinements": smt_prob.num_refinements
+                }
 
 
 def write_test_results(dataset, tool_name):
@@ -228,6 +261,8 @@ def run_aeval_single(tool_name, num_bench, only_run):
         run_benchmark_cmd("Quic3", SINGLE_CMD, "aeval-single", num, only_run)
     elif tool_name == "GSpacer":
         run_benchmark_cmd("GSpacer", SINGLE_CMD, "aeval-single", num, only_run)
+    elif tool_name == "Freqhorn":
+        run_benchmark_cmd("Freqhorn", SINGLE_CMD, "aeval-single", num, only_run)
     elif tool_name == "CondHist":
         run_aeval_single_ours(tool_name, num, only_run)
     else:
@@ -245,9 +280,45 @@ def run_aeval_multiple(tool_name, num_bench, only_run):
         run_benchmark_cmd("Quic3", MULTIPLE, "aeval-multiple", num, only_run)
     elif tool_name == "GSpacer":
         run_benchmark_cmd("GSpacer", MULTIPLE, "aeval-multiple", num, only_run)
+    elif tool_name == "Freqhorn":
+        run_benchmark_cmd("Freqhorn", MULTIPLE, "aeval-multiple", num, only_run)
     elif tool_name == "CondHist":
         run_aeval_multiple_ours(tool_name, num, only_run)
     else:
         raise ValueError(
             f"Tool {tool_name} not found. Are you on the correct branch?\nOnly Quic3, GSpacer, and CondHist are available on this branch."
         )
+
+def remove_next_references(all_vars):
+    rmap = defaultdict(list)
+    for v in all_vars:
+        if isinstance(v,StateVariable):
+            for tr in v.trans_constraints:
+                if str(tr.decl()) == "Implies":
+                    rhs = tr.arg(1)
+                    if str(rhs.decl()) == "==":
+                        erhs = rhs.arg(1)
+                        if str(erhs) == v.get_next_name():
+                            rmap[tr.arg(0)].append((erhs,rhs.arg(0)))
+    new_vars = []
+    for v in all_vars:
+        if isinstance(v,StateVariable) and v.trans_constraints is not None:
+            new_trs = []
+            for tr in v.trans_constraints:
+                if str(tr.decl()) == "Implies":
+                    cond = tr.arg(0)
+                    asg = tr.arg(1)
+                    if str(asg.decl()) == "==":
+                        val = asg.arg(0)
+                        var = asg.arg(1)
+                        if cond in rmap:
+                            subs = rmap[cond].copy()
+                            # orig_tr = tr
+                            tr = Implies(cond,substitute(val,subs)==var)
+                            # if not tr.eq(orig_tr):
+                            #     print ("orig tr: {}".format(orig_tr))
+                            #     print ("new tr: {}".format(tr))
+                new_trs.append(tr)
+            v.trans_constraints = new_trs
+    return all_vars
+

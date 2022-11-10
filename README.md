@@ -1,17 +1,56 @@
 [![DOI](https://zenodo.org/badge/538743822.svg)](https://zenodo.org/badge/latestdoi/538743822)
 
-# Setup
+# Setup from Scratch for Ubuntu
+
+This is how I would set up the tool to run on a fresh Ubuntu instance.
+Everything I download that isn't an apt package is downloaded to the
+home directory: `/home/ubuntu/`.
+
+- Clone this Repo
+  - https://github.com/cvick32/ConditionalHistory.git
+- Update Apt
+  - `sudo apt update`
+- Install IC3IA
+  - `wget https://es-static.fbk.eu/people/griggio/ic3ia/ic3ia-22.07.tar.gz`
+  - `tar -xvf ic3ia-22.07.tar.gz`
+  - `mv ic3ia-22.07.tar.gz ic3ia`
+  - Install MathSAT
+    - `wget https://mathsat.fbk.eu/download.php?file=mathsat-5.6.8-linux-x86_64.tar.gz`
+    - `tar -xvf 'download.php?file=mathsat-5.6.8-linux-x86_64.tar.gz'`
+  - Install Cmake
+    - `sudo apt install cmake`
+  - Install g++
+    - `sudo apt install g++`
+    - `export CXX=g++`
+  - Install gmp
+    - `sudo apt install libgmp3-dev`
+  - `cd ic3ia`
+  - `mkdir build`
+  - `cd build`
+  - `cmake .. -DMATHSAT_DIR=/home/ubuntu/mathsat -DCMAKE_BUILD_TYPE=Release`
+  - `make`
+  - Copy IC3IA to `/usr/bin/`
+    - `sudo cp ic3ia /usr/bin/`
+- Install Python3
+  - `sudo apt install python3 python3-pip python3.10-venv`
+- Install Java 11 or greater
+  - `sudo apt install openjdk-17-jre-headless`
+- Change directory to ConditionalHistory
+  - `cd ConditionalHistory`
 - Create a virtual environment
   - `python3 -m venv ch`
 - Activate environment
   - `source ch/bin/activate`
 - Install requirements
   - `python -m pip install -r requirements.txt`
+- Test that everything is working
+  - `cd src`
+  - `python run_benchmarks.py CondHist multiple --only_run=array_hybr_sum.smt2`
 
 These steps must be done in order to run the tool! Make sure that in
 the terminal there is an environment that precedes the command line.
 For instance, for a virtual environment named `ch`, after the
-environment is activates the command line of the terminal should be
+environment is activated the command line of the terminal should be
 preceded by `(ch)`.
 
 
