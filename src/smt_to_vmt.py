@@ -1,4 +1,4 @@
-from z3 import Solver, And, Not, Implies, substitute
+from z3 import Solver, And, Not, Implies, substitute, ExprRef
 import subprocess
 import pprint
 
@@ -13,7 +13,7 @@ from countermodel import CounterModel
 from utils import timeout, write_list_to_file, unabstract_out_vmt
 from synthesizer import Synthesizer
 import z3_defs as z3_defs
-
+from interpolator import Interpolator
 
 IC3IA = "ic3ia"
 CYCLES = 50
@@ -237,7 +237,7 @@ class SmtToVmt:
                     self.proph_axiom_instances.append(axiom_instance.sexpr())
                 return
 
-    def get_top_interpolant(self,hist):
+    def get_top_interpolant(self, hist):
         synth = Synthesizer(
             self.get_all_interpolant_clauses(),
             self.countermodels[-1].model,
@@ -305,6 +305,24 @@ class SmtToVmt:
         self.countermodels.append(CounterModel(self.cur_model, violations))
         if violations:
             print("Found Axiom Violations")
+            exprs, props = self.get_bmc_exprs()
+            axiom_instances = [v.axiom_instance for v in violations]
+            for ai in axiom_instances:
+                print(ai)
+                exprs.add(ai)
+            s = Solver()
+            s.add(Not(Implies(And(exprs), And(props))))
+            check = s.check()
+            print(check)
+            if str(check) == "unsat":
+                interp_axiom_instances = [
+                    (min(v.frame_numbers), v.axiom_instance) for v in violations
+                ]
+                interp_exprs, interp_props = self.get_bmc_interp_exprs(interp_axiom_instances)
+                interp = Interpolator(
+                    interp_exprs, interp_props, self.all_vars, self.cur_model
+                )
+                interp.interpolate()
             self.add_ic3ia_axiom_violations(violations)
         else:
             raise ValueError("No Axiom Violations Found!")
@@ -319,7 +337,9 @@ class SmtToVmt:
                     self.substitute_single_frame_constraints(self.init_constraints, idx)
                 )
                 exprs.extend(
-                    self.substitute_single_frame_constraints(self.aux_init_constraints, idx)
+                    self.substitute_single_frame_constraints(
+                        self.aux_init_constraints, idx
+                    )
                 )
                 sub = self.get_subs_for_cex_step(idx)
                 subs.append(sub)
@@ -341,6 +361,25 @@ class SmtToVmt:
         self.set_var_constraints_with_subs(subs)
         return set(exprs), props
 
+    def get_bmc_interp_exprs(self, axiom_instances: [(int,ExprRef)]) -> [[ExprRef]]:
+        exprs = []
+        props = []
+        for idx in range(0, self.cur_cex_steps):
+            included = self.include_axiom_instances_for_idx(axiom_instances, idx)
+            if idx == 0:
+                idx_exprs = self.substitute_single_frame_constraints(self.init_constraints, idx)
+                idx_exprs.extend(included)
+                exprs.append(idx_exprs)
+            if idx == self.cur_cex_steps - 1:
+                props.extend(
+                    self.substitute_single_frame_constraints(self.prop_constraints, idx)
+                )
+            else:
+                idx_exprs = self.substitute_trans_constraints(self.trans_constraints, idx)
+                idx_exprs.extend(included)
+                exprs.append(idx_exprs)
+        return exprs, props
+
     def substitute_single_frame_constraints(self, constraints, cex_step):
         return [
             substitute(constraint, self.get_subs_for_cex_step(cex_step))
@@ -355,6 +394,13 @@ class SmtToVmt:
             )
             for constraint in constraints
         ]
+
+    def include_axiom_instances_for_idx(self, axiom_instances: [(int, ExprRef)], idx: int) -> [ExprRef]:
+        included = []
+        for ai in axiom_instances:
+            if ai[0] == idx:
+                included.append(ai[1])
+        return included
 
     def set_var_constraints_with_subs(self, subs):
         for var in self.all_vars:
